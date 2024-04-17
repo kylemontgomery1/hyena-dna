@@ -14,5 +14,5 @@ pad_interval: False
 d_output: 2
 shuffle: True
 __train_len: 38171  
-__l_max: ${eval:${.max_length} + 2}
+__l_max: ${.max_length}
 

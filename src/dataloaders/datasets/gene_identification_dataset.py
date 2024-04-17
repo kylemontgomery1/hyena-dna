@@ -127,10 +127,17 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
                 ((self.labels['start'] < end) & (self.labels['end'] >= end)) # gene ends after the interval
             )
         ]
+        
+        offset = torch.where(seq != 4)[0][0].item()
+        print(offset)
+        print(seq[:offset])
+        print(seq[offset:])
+        
         for rows in t.itertuples():
-            start_idx = max(start, rows.start) - start + 1
-            end_idx = min(end, rows.end) - start + 1
-            targets[start_idx:end_idx] = 1 
+            start_idx = max(start, rows.start) - start + offset
+            end_idx = min(end, rows.end) - start + offset
+            targets[start_idx:end_idx] = 1
+        print(targets) 
 
         return seq.clone(), targets.clone()
     

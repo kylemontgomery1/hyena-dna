@@ -23,7 +23,7 @@ model:
     emb_dim: 5
     filter_order: 64
     short_filter_order: 3
-    l_max: ${eval:${dataset.max_length} + 2}
+    l_max: ${dataset.max_length}
     modulate: True
     w: 10
     lr: ${optimizer.lr}
@@ -57,7 +57,7 @@ dataset:
   tokenizer_name: char
   max_length: 1000000
   rc_aug: False
-  add_eos: True
+  add_eos: False
   batch_size: 256
   replace_N_tokens: False
   padding_size: left
