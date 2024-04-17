@@ -85,7 +85,7 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
         print(chr_name)
         print(start)
         print(end)
-        seq = self.fasta(chr_name, start, end, max_length=self.max_length, return_augs=self.return_augs)
+        seq = self.fasta(chr_name, start, end, max_length=self.max_length, return_augs=self.return_augs, fill=False)
         print(len(seq))
         if self.tokenizer_name == 'char':
 

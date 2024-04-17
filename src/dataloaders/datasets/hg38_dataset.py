@@ -69,7 +69,7 @@ class FastaInterval():
             self.chr_lens[chr_name] = len(self.seqs[chr_name])
 
 
-    def __call__(self, chr_name, start, end, max_length, return_augs = False):
+    def __call__(self, chr_name, start, end, max_length, return_augs = False, fill = True):
         """
         max_length passed from dataset, not from init
         """
@@ -88,38 +88,43 @@ class FastaInterval():
             rand_shift = randrange(min_shift, max_shift)
             start += rand_shift
             end += rand_shift
+            
+        if fill:
 
-        left_padding = right_padding = 0
+            left_padding = right_padding = 0
 
-        # checks if not enough sequence to fill up the start to end
-        if interval_length < max_length:
-            extra_seq = max_length - interval_length
+            # checks if not enough sequence to fill up the start to end
+            if interval_length < max_length:
+                extra_seq = max_length - interval_length
 
-            extra_left_seq = extra_seq // 2
-            extra_right_seq = extra_seq - extra_left_seq
+                extra_left_seq = extra_seq // 2
+                extra_right_seq = extra_seq - extra_left_seq
 
-            start -= extra_left_seq
-            end += extra_right_seq
+                start -= extra_left_seq
+                end += extra_right_seq
 
-        if start < 0:
-            left_padding = -start
-            start = 0
+            if start < 0:
+                left_padding = -start
+                start = 0
 
-        if end > chromosome_length:
-            right_padding = end - chromosome_length
-            end = chromosome_length
+            if end > chromosome_length:
+                right_padding = end - chromosome_length
+                end = chromosome_length
 
-        # Added support!  need to allow shorter seqs
-        if interval_length > max_length:
-            end = start + max_length
+            # Added support!  need to allow shorter seqs
+            if interval_length > max_length:
+                end = start + max_length
 
-        seq = str(chromosome[start:end])
+            seq = str(chromosome[start:end])
 
-        if self.rc_aug and coin_flip():
-            seq = string_reverse_complement(seq)
+            if self.rc_aug and coin_flip():
+                seq = string_reverse_complement(seq)
 
-        if self.pad_interval:
-            seq = ('.' * left_padding) + seq + ('.' * right_padding)
+            if self.pad_interval:
+                seq = ('.' * left_padding) + seq + ('.' * right_padding)
+                
+        else:
+            seq = str(chromosome[start:end])
 
         return seq
 
