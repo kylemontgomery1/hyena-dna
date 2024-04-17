@@ -3,7 +3,7 @@ defaults:
   - /trainer: default
   - /loader: default
   - /dataset: gene_identification
-  - /task: base
+  - /task: multilabel_classification
   - /optimizer: adamw
   - /scheduler: plateau
   - /callbacks: [base, checkpoint]

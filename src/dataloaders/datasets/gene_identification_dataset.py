@@ -5,6 +5,7 @@ import pandas as pd
 import torch
 from random import randrange, random
 import numpy as np
+import os
 
 from src.dataloaders.datasets.hg38_char_tokenizer import CharacterTokenizer
 from src.dataloaders.datasets.hg38_dataset import FastaInterval
@@ -41,7 +42,7 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
         self.replace_N_token = replace_N_token  
         self.pad_interval = pad_interval
         self.d_output = d_output         
-
+        
         bed_path = Path(bed_file)
         assert bed_path.exists(), 'path to .bed file must exist'
 
@@ -81,9 +82,11 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
         row = self.df.iloc[idx]
         # row = (chr, start, end, split)
         chr_name, start, end = (row[0], row[1], row[2])
-
+        print(chr_name)
+        print(start)
+        print(end)
         seq = self.fasta(chr_name, start, end, max_length=self.max_length, return_augs=self.return_augs)
-
+        print(len(seq))
         if self.tokenizer_name == 'char':
 
             seq = self.tokenizer(seq,
@@ -109,26 +112,29 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
         
         # convert to tensor
         seq = torch.LongTensor(seq)  # hack, remove the initial cls tokens for now
-
+        print(seq)
+        print(seq.shape)
         if self.replace_N_token:
             # replace N token with a pad token, so we can ignore it in the loss
             seq = self.replace_value(seq, self.tokenizer._vocab_str_to_int['N'], self.tokenizer.pad_token_id)
 
         targets = torch.zeros_like(seq)
         start, end = int(start), int(end)
-        self.labels[
-            self.labels['seqname'] == chr_name & 
+        
+        t = self.labels[
+            (self.labels['seqname'] == chr_name) & 
             (
                 ((self.labels['start'] >= start) & (self.labels['end'] < end)) | # gene is within the interval
                 ((self.labels['start'] < start) & (self.labels['end'] >= start)) | # gene starts before the interval
-                ((self.labels['start'] < end) & (self.labels['end'] > end)) # gene ends after the interval
+                ((self.labels['start'] < end) & (self.labels['end'] >= end)) # gene ends after the interval
             )
         ]
-        for rows in self.labels.itertuples():
+        for rows in t.itertuples():
+            print(rows)
             start_idx = max(start, rows.start) - start + 1
             end_idx = min(end, rows.end) - start + 1
-            targets[start_idx:end_idx] = 1
-            
+            targets[start_idx:end_idx] = 1 
+
         return seq.clone(), targets.clone()
     
 if __name__ == '__main__':

@@ -730,7 +730,8 @@ class GeneIdentification(HG38):
     def __init__(self, bed_file, fasta_file, ref_labels_file, tokenizer_name=None, max_length=1024, rc_aug=False,
                  max_length_val=None, max_length_test=None, add_eos=True, batch_size=32, batch_size_eval=None, num_workers=1,
                  shuffle=False, shuffle_eval=False, fault_tolerant=False, ddp=False, fast_forward_epochs=None, 
-                 fast_forward_batches=None, replace_N_token=False, padding_size='right', pad_interval=False, d_output=None, *args, **kwargs):
+                 fast_forward_batches=None, replace_N_token=False, padding_side='left', pad_interval=False, d_output=None, 
+                 pin_memory=False, drop_last=False, *args, **kwargs):
         self.tokenizer_name = tokenizer_name
         self.rc_aug = rc_aug  # reverse compliment augmentation
         self.max_length = max_length
@@ -747,8 +748,10 @@ class GeneIdentification(HG38):
         self.ref_labels_file = ref_labels_file
         self.replace_N_token = replace_N_token
         self.pad_interval = pad_interval
-        self.padding_size = padding_size     
-        self.d_output = d_output   
+        self.padding_side = padding_side     
+        self.d_output = d_output
+        self.pin_memory = pin_memory
+        self.drop_last = drop_last
 
         if fault_tolerant:
             assert self.shuffle

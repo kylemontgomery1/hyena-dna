@@ -39,7 +39,7 @@ task:
     - AUROC
     - Precision
     - Recall
-    - F1
+    - F1Score
 
 trainer:
   accelerator: gpu
@@ -51,16 +51,16 @@ trainer:
   gradient_clip_val: 1.0
 
 dataset:
-  bed_file: ./data/hg38/human-sequences.bed
-  fasta_file: ./data/hg38/hg38.ml.fz
-  ref_labels_file: ./data/hg38/hg38.refGene.gtf
+  bed_file: /scratch/kyle/hyena-dna/data/hg38/human-sequences.bed
+  fasta_file: /scratch/kyle/hyena-dna/data/hg38/hg38.ml.fa
+  ref_labels_file: /scratch/kyle/hyena-dna/data/hg38/hg38.refGene.gtf
   tokenizer_name: char
   max_length: 1000000
   rc_aug: False
   add_eos: True
   batch_size: 256
   replace_N_tokens: False
-  padding_size: right
+  padding_size: left
   pad_interval: False
   d_output: 2
 
@@ -80,7 +80,7 @@ train:
   seed: 2222
   global_batch_size: ${dataset.batch_size}
   pretrained_model_strict_load: False 
-  pretrained_model_path: ./models/models--LongSafari--hyenadna-large-1m-seqlen/snapshots/bf15705b2037667c89fbc6aa4126ead6da403bf3
+  pretrained_model_path: /scratch/kyle/hyena-dna/models/models--LongSafari--hyenadna-large-1m-seqlen/snapshots/bf15705b2037667c89fbc6aa4126ead6da403bf3/weights.ckpt
   pretrained_model_state_hook:
     _name_: load_backbone
     freeze_backbone: False  # seems to work much better if False (ie finetune entire model)
