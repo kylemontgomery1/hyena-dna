@@ -82,9 +82,7 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
         row = self.df.iloc[idx]
         # row = (chr, start, end, split)
         chr_name, start, end = (row[0], row[1], row[2])
-        print(chr_name)
-        print(start)
-        print(end)
+        print(chr_name, start, end)
         seq = self.fasta(chr_name, start, end, max_length=self.max_length, return_augs=self.return_augs, fill=False)
         print(len(seq))
         if self.tokenizer_name == 'char':
@@ -130,7 +128,6 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
             )
         ]
         for rows in t.itertuples():
-            print(rows)
             start_idx = max(start, rows.start) - start + 1
             end_idx = min(end, rows.end) - start + 1
             targets[start_idx:end_idx] = 1 
