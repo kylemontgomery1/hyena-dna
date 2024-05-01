@@ -66,8 +66,8 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
         df_raw = pd.read_csv(str(ref_label_path), sep='\t', comment='#', header=None, 
                  names=['seqname', 'source', 'feature', 'start', 'end', 'score', 'strand', 'frame', 'attribute'])
         df_raw['start'] = df_raw['start'].astype(int)
+        df_raw['start'] -= 1
         df_raw['end'] = df_raw['end'].astype(int)
-        df_raw['end'] += 1
         self.labels = df_raw[['seqname', 'start', 'end']]
 
 
@@ -129,48 +129,20 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
         ]
         
         offset = torch.where(seq != 4)[0][0].item()
-         
         for rows in t.itertuples():
-            start_idx = max(start, rows.start) - start + offset
-            end_idx = min(end, rows.end) - start + offset
-            targets[start_idx:end_idx] = 1
+            if start <= row.start: # interval starts at or before the gene
+                start_idx = rows.start - start + offset
+                end_idx = min(end, rows.end) - start + offset
+                targets[start_idx:end_idx] = 1
+                if self.d_output == 3:
+                    targets[start_idx] = 2 # start of the gene represented by label "2"
+            else: # start > row.start implies the gene starts before the interval
+                start_idx = offset
+                end_idx = min(end, rows.end) - start + offset
+                targets[start_idx:end_idx] = 1
+        targets[:offset] = -100 # ignore the padding tokens
         
-        targets[:offset] = -100
+        print(seq)
+        print(targets)
 
         return seq.clone(), targets.clone()
-    
-if __name__ == '__main__':
-    
-    tokenizer = CharacterTokenizer(
-        characters=['A', 'C', 'G', 'T', 'N'],
-        model_max_length=1000002,
-        add_special_tokens=False,
-        padding_side='right',
-    )
-    
-    dataset = GeneIdentificationDataset(
-        split='train',
-        bed_file='./data/hg38/human-sequences.bed',
-        fasta_file='./data/hg38/hg38.ml.fz',
-        ref_labels_file='./data/hg38/hg38.refGene.gtf',
-        max_length=1000000,
-        pad_max_length=1000000,
-        tokenizer=tokenizer,
-        tokenizer_name='char',
-        add_eos=True,
-        return_seq_indices=False,
-        shift_augs=None,
-        rc_aug=False,
-        return_augs=False,
-        replace_N_token=False, 
-        pad_interval = False,  
-    )
-    
-    print(dataset[0])
-        
-    
-    
-    
-        
-        
-        

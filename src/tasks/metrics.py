@@ -160,8 +160,8 @@ def binary_cross_entropy(logits, y):
 def binary_accuracy(logits, y):
     return torch.eq(logits.squeeze(-1) >= 0, y).float().mean()
 
-def padded_cross_entropy(logits, y, pad_mask, pad_value=-1):
-    """Will ignore the pad value in label (eg, -1)
+def padded_cross_entropy(logits, y, pad_mask, pad_value=-100):
+    """Will ignore the pad value in label (eg, -100)
     
     logits: (batch_size, seq_len, vocab_size)
     y: (batch_size, seq_len)
@@ -223,7 +223,7 @@ def f1_binary(logits, y):
     y_hat = torch.argmax(logits, dim=-1)
     return f1_score(y.cpu().numpy(), y_hat.cpu().numpy(), average="binary")
 
-def f1_binary_pad(logits, y, ignore_index=-100):
+def f1_binary_ignore_index(logits, y, ignore_index=-100):
     logits = logits.view(-1, logits.shape[-1])
     y = y.view(-1)
     y_hat = torch.argmax(logits, dim=-1)
@@ -238,11 +238,27 @@ def f1_macro(logits, y):
     return f1_score(y.cpu().numpy(), y_hat.cpu().numpy(), average="macro")
 
 
+def f1_macro_ignore_index(logits, y, ignore_index=-100):
+    logits = logits.view(-1, logits.shape[-1])
+    y = y.view(-1)
+    y_hat = torch.argmax(logits, dim=-1)
+    mask = y != ignore_index
+    return f1_score(y[mask].cpu().numpy(), y_hat[mask].cpu().numpy(), average="macro")
+
+
 def f1_micro(logits, y):
     logits = logits.view(-1, logits.shape[-1])
     y = y.view(-1)
     y_hat = torch.argmax(logits, dim=-1)
     return f1_score(y.cpu().numpy(), y_hat.cpu().numpy(), average="micro")
+
+
+def f1_micro_ignore_index(logits, y, ignore_index=-100):
+    logits = logits.view(-1, logits.shape[-1])
+    y = y.view(-1)
+    y_hat = torch.argmax(logits, dim=-1)
+    mask = y != ignore_index
+    return f1_score(y[mask].cpu().numpy(), y_hat[mask].cpu().numpy(), average="micro")
 
 
 def roc_auc_macro(logits, y):
@@ -340,9 +356,11 @@ output_metric_fns = {
     "mae": mae,
     "forecast_rmse": forecast_rmse,
     "f1_binary": f1_binary,
-    "f1_binary_pad": f1_binary_pad,
+    "f1_binary_ignore_index": f1_binary_ignore_index,
     "f1_macro": f1_macro,
+    "f1_macro_ignore_index": f1_macro_ignore_index,
     "f1_micro": f1_micro,
+    "f1_micro_ignore_index": f1_micro_ignore_index,
     "roc_auc_macro": roc_auc_macro,
     "roc_auc_micro": roc_auc_micro,
     "soft_cross_entropy": soft_cross_entropy,  # only for pytorch 1.10+
