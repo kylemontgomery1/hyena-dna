@@ -770,7 +770,7 @@ class GeneIdentification(HG38):
             print("**Using Char-level tokenizer**")
             self.tokenizer = CharacterTokenizer(
                 characters=['A', 'C', 'G', 'T', 'N'],
-                model_max_length=self.max_length,
+                model_max_length=self.max_length+2,
                 add_special_tokens=False,
                 padding_side=self.padding_side,
             )

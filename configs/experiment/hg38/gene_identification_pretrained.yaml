@@ -1,0 +1,81 @@
+# @package _global_
+defaults:
+  - /pipeline: gene_identification
+  - override /scheduler: cosine_warmup_timm
+
+model:
+  _name_: dna_embedding
+  d_model: 256
+  n_layer: 8
+  d_inner: 1024
+  vocab_size: 12
+  resid_dropout: 0.0
+  embed_dropout: 0.1
+  fused_mlp: False # figure out how to use fused MLP, maybe only with bf16 + a100
+  fused_dropout_add_ln: True
+  residual_in_fp32: True
+  pad_vocab_size_multiple: 8
+  return_hidden_state: True
+  layer:
+    _name_: hyena
+    emb_dim: 5
+    filter_order: 64
+    short_filter_order: 3
+    l_max: ${eval:${dataset.max_length}+2}
+    modulate: True
+    w: 10
+    lr: ${optimizer.lr}
+    wd: 0.0
+    lr_pos_emb: 0.0
+
+task:
+  _name_: base
+  loss: cross_entropy
+  metrics: 
+    - accuracy
+    - f1_binary_pad
+  torchmetrics: null
+
+trainer:
+  accelerator: gpu
+  devices: 1
+  num_nodes: 1
+  accumulate_grad_batches: ${div_up:${train.global_batch_size}, ${eval:${trainer.devices} * ${dataset.batch_size} * ${trainer.num_nodes}}}
+  max_epochs: 100
+  precision: 16
+  gradient_clip_val: 1.0
+
+dataset:
+  bed_file: /scratch/kyle/hyena-dna/data/hg38/human-sequences.bed
+  fasta_file: /scratch/kyle/hyena-dna/data/hg38/hg38.ml.fa
+  ref_labels_file: /scratch/kyle/hyena-dna/data/hg38/hg38.refGene.gtf
+  tokenizer_name: char
+  max_length: 160000
+  rc_aug: False
+  add_eos: False
+  batch_size: 2
+  replace_N_tokens: False
+  padding_size: left
+  pad_interval: False
+  d_output: 2
+
+scheduler:
+  t_in_epochs: False
+  t_initial: ${eval:${div_up:${dataset.__train_len}, ${train.global_batch_size}} * ${trainer.max_epochs}}
+  warmup_lr_init: 1e-6
+  warmup_t: ${eval:${div_up:${dataset.__train_len}, ${train.global_batch_size}} * ${trainer.max_epochs} * 0.01}
+  lr_min: ${eval:0.1 * ${optimizer.lr}}
+
+optimizer:
+  lr: 6e-4
+  weight_decay: 0.1
+
+train:
+  gpu_mem: ${eval:"round(float(__import__('subprocess').check_output('nvidia-smi -i 0 --query-gpu=memory.total --format=csv,noheader,nounits', shell=True).strip().decode()) / 1000)"}
+  seed: 2222
+  global_batch_size: ${dataset.batch_size}
+  pretrained_model_strict_load: False 
+  pretrained_model_path: /scratch/kyle/hyena-dna/models/models--LongSafari--hyenadna-medium-160k-seqlen/snapshots/97418a932041cfa6a88978bf2c53a09e5604607e/weights.ckpt
+  pretrained_model_state_hook:
+    _name_: load_backbone
+    freeze_backbone: False  # seems to work much better if False (ie finetune entire model)

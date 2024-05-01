@@ -48,6 +48,7 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
 
         # read bed file
         df_raw = pd.read_csv(str(bed_path), sep = '\t', names=['chr_name', 'start', 'end', 'split'])
+        
         # select only split df
         self.df = df_raw[df_raw['split'] == split]
 
@@ -82,9 +83,9 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
         row = self.df.iloc[idx]
         # row = (chr, start, end, split)
         chr_name, start, end = (row[0], row[1], row[2])
-        print(chr_name, start, end)
+        
         seq = self.fasta(chr_name, start, end, max_length=self.max_length, return_augs=self.return_augs, fill=False)
-        print(len(seq))
+        
         if self.tokenizer_name == 'char':
 
             seq = self.tokenizer(seq,
@@ -110,8 +111,7 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
         
         # convert to tensor
         seq = torch.LongTensor(seq)  # hack, remove the initial cls tokens for now
-        print(seq)
-        print(seq.shape)
+        
         if self.replace_N_token:
             # replace N token with a pad token, so we can ignore it in the loss
             seq = self.replace_value(seq, self.tokenizer._vocab_str_to_int['N'], self.tokenizer.pad_token_id)
@@ -129,15 +129,13 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
         ]
         
         offset = torch.where(seq != 4)[0][0].item()
-        print(offset)
-        print(seq[:offset])
-        print(seq[offset:])
-        
+         
         for rows in t.itertuples():
             start_idx = max(start, rows.start) - start + offset
             end_idx = min(end, rows.end) - start + offset
             targets[start_idx:end_idx] = 1
-        print(targets) 
+        
+        targets[:offset] = -100
 
         return seq.clone(), targets.clone()
     

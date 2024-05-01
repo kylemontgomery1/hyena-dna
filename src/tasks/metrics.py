@@ -223,6 +223,13 @@ def f1_binary(logits, y):
     y_hat = torch.argmax(logits, dim=-1)
     return f1_score(y.cpu().numpy(), y_hat.cpu().numpy(), average="binary")
 
+def f1_binary_pad(logits, y, ignore_index=-100):
+    logits = logits.view(-1, logits.shape[-1])
+    y = y.view(-1)
+    y_hat = torch.argmax(logits, dim=-1)
+    mask = y != ignore_index
+    return f1_score(y[mask].cpu().numpy(), y_hat[mask].cpu().numpy(), average="binary")
+
 
 def f1_macro(logits, y):
     logits = logits.view(-1, logits.shape[-1])
@@ -333,6 +340,7 @@ output_metric_fns = {
     "mae": mae,
     "forecast_rmse": forecast_rmse,
     "f1_binary": f1_binary,
+    "f1_binary_pad": f1_binary_pad,
     "f1_macro": f1_macro,
     "f1_micro": f1_micro,
     "roc_auc_macro": roc_auc_macro,

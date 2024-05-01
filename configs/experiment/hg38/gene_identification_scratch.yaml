@@ -13,8 +13,6 @@ model:
   embed_dropout: 0.1
   fused_mlp: False # figure out how to use fused MLP, maybe only with bf16 + a100
   fused_dropout_add_ln: True
-  checkpoint_mixer: True  # set True for memory reduction
-  checkpoint_mlp: True  # set True for memory reduction
   residual_in_fp32: True
   pad_vocab_size_multiple: 8
   return_hidden_state: True
@@ -23,7 +21,7 @@ model:
     emb_dim: 5
     filter_order: 64
     short_filter_order: 3
-    l_max: ${dataset.max_length}
+    l_max: ${eval:${dataset.max_length}+2}
     modulate: True
     w: 10
     lr: ${optimizer.lr}
@@ -32,14 +30,11 @@ model:
 
 task:
   _name_: base
-  loss: binary_cross_entropy
+  loss: cross_entropy
   metrics: 
     - accuracy
-  torchmetrics:
-    - AUROC
-    - Precision
-    - Recall
-    - F1Score
+    - f1_binary_pad
+  torchmetrics: null
 
 trainer:
   accelerator: gpu
@@ -55,10 +50,10 @@ dataset:
   fasta_file: /scratch/kyle/hyena-dna/data/hg38/hg38.ml.fa
   ref_labels_file: /scratch/kyle/hyena-dna/data/hg38/hg38.refGene.gtf
   tokenizer_name: char
-  max_length: 1000000
+  max_length: 160000
   rc_aug: False
   add_eos: False
-  batch_size: 256
+  batch_size: 2
   replace_N_tokens: False
   padding_size: left
   pad_interval: False
@@ -80,7 +75,7 @@ train:
   seed: 2222
   global_batch_size: ${dataset.batch_size}
   pretrained_model_strict_load: False 
-  pretrained_model_path: /scratch/kyle/hyena-dna/models/models--LongSafari--hyenadna-large-1m-seqlen/snapshots/bf15705b2037667c89fbc6aa4126ead6da403bf3/weights.ckpt
+  pretrained_model_path: null
   pretrained_model_state_hook:
     _name_: load_backbone
     freeze_backbone: False  # seems to work much better if False (ie finetune entire model)
