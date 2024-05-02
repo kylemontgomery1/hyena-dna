@@ -160,8 +160,8 @@ def binary_cross_entropy(logits, y):
 def binary_accuracy(logits, y):
     return torch.eq(logits.squeeze(-1) >= 0, y).float().mean()
 
-def padded_cross_entropy(logits, y, pad_mask, pad_value=-100):
-    """Will ignore the pad value in label (eg, -100)
+def padded_cross_entropy(logits, y, pad_mask, pad_value=-1):
+    """Will ignore the pad value in label (eg, -1)
     
     logits: (batch_size, seq_len, vocab_size)
     y: (batch_size, seq_len)
