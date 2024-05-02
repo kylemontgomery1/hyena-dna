@@ -31,9 +31,8 @@ model:
 
 task:
   _name_: base
-  loss: padded_cross_entropy
+  loss: cross_entropy
   metrics: 
-    - accuracy_ignore_index
     - f1_binary_ignore_index
   torchmetrics: null
 
