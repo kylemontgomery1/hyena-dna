@@ -142,7 +142,4 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
                 targets[start_idx:end_idx] = 1
         targets[:offset] = -100 # ignore the padding tokens
         
-        print(seq)
-        print(targets)
-
         return seq.clone(), targets.clone()
