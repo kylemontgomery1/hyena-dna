@@ -129,23 +129,16 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
         ]
         
         offset = torch.where(seq != 4)[0][0].item()
-        for rows in t.itertuples():
+        for row in t.itertuples():
             if start <= row.start: # interval starts at or before the gene
-                print("offset ", offset)
-                print("start ", start)
-                print("row.start ", rows.start)
-                print("end ", end)
-                print("row.end ", rows.end)
-                start_idx = rows.start - start + offset
-                print("start_idx ", start_idx)
-                end_idx = min(end, rows.end) - start + offset
-                print("end_idx ", end_idx)
+                start_idx = row.start - start + offset
+                end_idx = min(end, row.end) - start + offset
                 targets[start_idx:end_idx] = 1
                 if self.d_output == 3:
                     targets[start_idx] = 2 # start of the gene represented by label "2"
             else: # start > row.start implies the gene starts before the interval
                 start_idx = offset
-                end_idx = min(end, rows.end) - start + offset
+                end_idx = min(end, row.end) - start + offset
                 targets[start_idx:end_idx] = 1
         targets[:offset] = -100 # ignore the padding tokens
         
