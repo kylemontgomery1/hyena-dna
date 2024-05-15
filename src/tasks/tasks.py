@@ -182,13 +182,10 @@ class BaseTask:
             
         for name, param in model.named_parameters():
             if torch.isnan(param).any() or torch.isinf(param).any():
-                print("param is nan or inf")
                 print("name ", name)
                 print("param ", param)
-            if (param.grad is not None) and torch.isnan(param.grad.float()).any():
-                print("grad is nan or inf")
-                print("name ", name)
-                print("param ", param)
+                if (param.grad is not None) and torch.isnan(param.grad.float()).any():
+                    print("grad ", param.grad)
         
         return x, y, w
 
