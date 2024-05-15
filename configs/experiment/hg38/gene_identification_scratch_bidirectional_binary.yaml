@@ -44,7 +44,7 @@ trainer:
   accumulate_grad_batches: ${div_up:${train.global_batch_size}, ${eval:${trainer.devices} * ${dataset.batch_size} * ${trainer.num_nodes}}}
   max_epochs: 100
   precision: 16
-  gradient_clip_val: 5.0
+  gradient_clip_val: 2.5
 
 dataset:
   bed_file: /scratch/kyle/hyena-dna/data/hg38/human-sequences.bed
