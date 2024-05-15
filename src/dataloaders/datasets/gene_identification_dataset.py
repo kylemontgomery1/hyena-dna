@@ -143,4 +143,8 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
                 targets[start_idx:end_idx] = 1
         targets[:offset] = -100 # ignore the padding tokens
         
+        assert not torch.any(targets[seq == 4] != -100), f"padding tokens should have been ignored, {targets[seq == 4]}"
+        assert not torch.isnan(seq).any(), f"seq contains NaNs: {seq}"
+        assert not torch.isnan(targets).any(), f"targets contains NaNs: {targets}"
+        
         return seq.clone(), targets.clone()

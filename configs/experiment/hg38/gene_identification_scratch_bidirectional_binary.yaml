@@ -44,7 +44,7 @@ trainer:
   accumulate_grad_batches: ${div_up:${train.global_batch_size}, ${eval:${trainer.devices} * ${dataset.batch_size} * ${trainer.num_nodes}}}
   max_epochs: 100
   precision: 16
-  gradient_clip_val: 2.5
+  gradient_clip_val: 1.0
   track_grad_norm: 2
 
 dataset:
@@ -69,12 +69,12 @@ scheduler:
   lr_min: ${eval:0.1 * ${optimizer.lr}}
 
 optimizer:
-  lr: 2e-4
+  lr: 6e-4
   weight_decay: 0.1
 
 train:
   gpu_mem: ${eval:"round(float(__import__('subprocess').check_output('nvidia-smi -i 0 --query-gpu=memory.total --format=csv,noheader,nounits', shell=True).strip().decode()) / 1000)"}
-  seed: 42
+  seed: 2222
   global_batch_size: ${dataset.batch_size}
   pretrained_model_strict_load: False 
   pretrained_model_path: null

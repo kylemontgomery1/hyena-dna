@@ -181,11 +181,11 @@ def cross_entropy(logits, y, ignore_index=-100):
     logits = logits.view(-1, logits.shape[-1])
     y = y.view(-1)
     loss = F.cross_entropy(logits, y, ignore_index=ignore_index)
-    if torch.isnan(loss):
-        print("logits ", logits)
-        print("logits shape ", logits.shape)
-        print("y ", y)
-        print("y shape ", y.shape)
+    # if torch.isnan(loss):
+    #     print("logits ", logits)
+    #     print("logits shape ", logits.shape)
+    #     print("y ", y)
+    #     print("y shape ", y.shape)
     return loss
 
 
