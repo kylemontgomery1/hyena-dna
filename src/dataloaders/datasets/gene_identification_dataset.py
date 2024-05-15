@@ -65,6 +65,7 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
         assert ref_label_path.exists(), 'path to reference labels file must exist'
         df_raw = pd.read_csv(str(ref_label_path), sep='\t', comment='#', header=None, 
                  names=['seqname', 'source', 'feature', 'start', 'end', 'score', 'strand', 'frame', 'attribute'])
+        df_raw = df_raw[df_raw['feature'] == 'transcript']
         df_raw['start'] = df_raw['start'].astype(int)
         df_raw['start'] -= 1
         df_raw['end'] = df_raw['end'].astype(int)

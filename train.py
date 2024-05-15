@@ -381,6 +381,12 @@ class SequenceLightningModule(pl.LightningModule):
         # Reset all test torchmetrics
         for name in self.test_loader_names:
             self.task._reset_torchmetrics(name)
+            
+    # def on_before_optimizer_step(self, optimizer):
+    #     # Compute the 2-norm for each layer
+    #     # If using mixed precision, the gradients are already unscaled here
+    #     norms = pl.utilities.grad_norm(self.layer, norm_type=2)
+    #     self.log_dict(norms)
 
     def test_epoch_end(self, outputs):
         # Log all test torchmetrics
