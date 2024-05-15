@@ -176,9 +176,12 @@ class BaseTask:
         self._state = state
         x, w = decoder(x, state=state, **z)
         
-        if torch.isnan(x).any() or torch.isinf(x).any():
-            print("x ", x)
-            print("batch ", batch)
+        # if torch.isnan(x).any() or torch.isinf(x).any():
+        print("inputs ", batch[0])
+        print(torch.unique(batch[0]))
+        print("targets ", batch[1])
+        print(torch.unique(batch[1]))
+        print("x ", x)
             
         for name, param in model.named_parameters():
             if torch.isnan(param).any() or torch.isinf(param).any():
@@ -186,6 +189,7 @@ class BaseTask:
                 print("param ", param)
                 if (param.grad is not None) and torch.isnan(param.grad.float()).any():
                     print("grad ", param.grad)
+                exit()
         
         return x, y, w
 
