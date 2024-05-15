@@ -44,7 +44,6 @@ trainer:
   max_epochs: 100
   precision: 16
   gradient_clip_val: 1.0
-  track_grad_norm: 2
 
 dataset:
   bed_file: /scratch/kyle/hyena-dna/data/hg38/human-sequences.bed
