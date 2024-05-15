@@ -177,6 +177,7 @@ class BaseTask:
         x, w = decoder(x, state=state, **z)
         
         # if torch.isnan(x).any() or torch.isinf(x).any():
+        print(torch.isnan(x).any() or torch.isinf(x).any())
         print("inputs ", batch[0])
         print(torch.unique(batch[0]))
         print("targets ", batch[1])
