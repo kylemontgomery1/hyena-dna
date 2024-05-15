@@ -176,14 +176,19 @@ class BaseTask:
         self._state = state
         x, w = decoder(x, state=state, **z)
         
-        names = detect_nan_parameters(model)
-        if names:
-            print(batch)
-            raise ValueError(
-            f"Detected nan and/or inf values in `{names}`."
-            " Check your forward pass for numerically unstable operations."
-            )   
+        if torch.isnan(x).any() or torch.isinf(x).any():
+            print("x ", x)
+            print("batch ", batch)
             
+        for name, param in model.named_parameters():
+            if torch.isnan(param).any() or torch.isinf(param).any():
+                print("param is nan or inf")
+                print("name ", name)
+                print("param ", param)
+            if (param.grad is not None) and torch.isnan(param.grad.float()).any():
+                print("grad is nan or inf")
+                print("name ", name)
+                print("param ", param)
         
         return x, y, w
 
