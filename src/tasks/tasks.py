@@ -1,4 +1,5 @@
 from typing import Optional, List, Tuple
+import logging
 import math
 import functools
 import collections
@@ -18,6 +19,32 @@ import src.models.nn.utils as U
 import torchmetrics as tm
 from src.utils.config import to_list, instantiate
 from torchmetrics import MetricCollection
+
+
+
+log = logging.getLogger(__name__)
+
+def print_nan_gradients(model: nn.Module) -> None:
+    """Iterates over model parameters and prints out parameter + gradient information if NaN."""
+    for param in model.parameters():
+        if (param.grad is not None) and torch.isnan(param.grad.float()).any():
+            log.info(f"{param}, {param.grad}")
+
+
+def detect_nan_parameters(model: nn.Module) -> None:
+    """Iterates over model parameters and prints gradients if any parameter is not finite.
+
+    Raises:
+        ValueError:
+            If ``NaN`` or ``inf`` values are found
+    """
+    for name, param in model.named_parameters():
+        if not torch.isfinite(param).all():
+            print_nan_gradients(model)
+            raise ValueError(
+                f"Detected nan and/or inf values in `{name}`."
+                " Check your forward pass for numerically unstable operations."
+            )
 
 class BaseTask:
     """ Abstract class that takes care of:
@@ -151,7 +178,7 @@ class BaseTask:
         self._state = state
         x, w = decoder(x, state=state, **z)
         
-        pl.utilities.finite_checks.detect_nan_params(model)
+        detect_nan_parameters(model)
         
         return x, y, w
 
