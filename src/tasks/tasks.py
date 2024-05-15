@@ -5,6 +5,7 @@ import collections
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import pytorch_lightning as pl
 from einops import rearrange
 from omegaconf import ListConfig
 from src.models.nn.components import ReversibleInstanceNorm1dInput, ReversibleInstanceNorm1dOutput, \
@@ -149,6 +150,9 @@ class BaseTask:
         x, state = model(x, **w, state=_state)
         self._state = state
         x, w = decoder(x, state=state, **z)
+        
+        pl.utilities.finite_checks.detect_nan_params(model)
+        
         return x, y, w
 
 
