@@ -38,13 +38,11 @@ def detect_nan_parameters(model: nn.Module) -> None:
         ValueError:
             If ``NaN`` or ``inf`` values are found
     """
+    names = []
     for name, param in model.named_parameters():
         if not torch.isfinite(param).all():
-            print_nan_gradients(model)
-            raise ValueError(
-                f"Detected nan and/or inf values in `{name}`."
-                " Check your forward pass for numerically unstable operations."
-            )
+            names.append(name)
+    return names
 
 class BaseTask:
     """ Abstract class that takes care of:
@@ -178,7 +176,14 @@ class BaseTask:
         self._state = state
         x, w = decoder(x, state=state, **z)
         
-        detect_nan_parameters(model)
+        names = detect_nan_parameters(model)
+        if names:
+            print(batch)
+            raise ValueError(
+            f"Detected nan and/or inf values in `{names}`."
+            " Check your forward pass for numerically unstable operations."
+            )   
+            
         
         return x, y, w
 
