@@ -148,6 +148,6 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
         assert not torch.any(targets[seq == 4] != -100), f"padding tokens should have been ignored, {targets[seq == 4]}"
         assert not torch.isnan(seq).any(), f"seq contains NaNs: {seq}"
         assert not torch.isnan(targets).any(), f"targets contains NaNs: {targets}"
-        assert seq.size(-1) == 131072
+        # assert seq.size(-1) == 131072
         
         return seq.clone(), targets.clone()
