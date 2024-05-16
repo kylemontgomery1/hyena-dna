@@ -67,38 +67,6 @@ def rank_zero_experiment(fn: Callable) -> Callable:
         return get_experiment() or DummyExperiment()
 
     return experiment
-
-class EnhancedNaNCheckerCallback(pl.Callback):
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
-        loss = outputs["loss"]
-        logits = pl_module(batch)[0]
-        
-        if torch.isnan(logits).any() or torch.isinf(logits).any():
-            print(f"NaNs or Infs detected in logits at batch {batch_idx}")
-            self.print_intermediate_outputs(pl_module, batch, batch_idx)
-            trainer.should_stop = True
-            return
-        
-        if torch.isnan(loss).any() or torch.isinf(loss).any():
-            print(f"NaNs or Infs detected in loss at batch {batch_idx}")
-            print(f"Loss: {loss}")
-            self.print_intermediate_outputs(pl_module, batch, batch_idx)
-            trainer.should_stop = True
-            return
-        
-        for name, param in pl_module.named_parameters():
-            if param.grad is not None and (torch.isnan(param.grad).any() or torch.isinf(param.grad).any()):
-                print(f"NaNs or Infs in gradients of {name} at batch {batch_idx}")
-                print(f"Gradients: {param.grad}")
-                self.print_intermediate_outputs(pl_module, batch, batch_idx)
-                trainer.should_stop = True
-                return
-    
-    def print_intermediate_outputs(self, pl_module, batch, batch_idx):
-        inputs, targets = batch
-        print(f"Inputs at batch {batch_idx}: {inputs}")
-        print(f"Targets at batch {batch_idx}: {targets}")
-        print(f"Intermediate outputs at batch {batch_idx}: {pl_module(batch)}")
             
 
 class CustomWandbLogger(WandbLogger):
@@ -660,7 +628,6 @@ def create_trainer(config, **kwargs):
     # Init lightning trainer
     log.info(f"Instantiating trainer <{config.trainer._target_}>")
     # special processing for seqlen warmup scheduler (reload)
-    callbacks.append(EnhancedNaNCheckerCallback())
     if config.callbacks.get("seqlen_warmup_reload", None) is not None:
         # we need to instantiate manually instead of with hydra, since it expects a dict instead of a hydra config for the accumulate_grad_batches
         # so we convert everything to dicts (from hydra configs)

@@ -91,7 +91,8 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
 
             seq = self.tokenizer(seq,
                 add_special_tokens=True if self.add_eos else False,  # this is what controls adding eos
-                padding="max_length",
+                # padding="max_length",
+                padding=False,
                 max_length=self.max_length,
                 truncation=True,
             )
@@ -129,7 +130,8 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
             )
         ]
         
-        offset = torch.where(seq != 4)[0][0].item()
+        # offset = torch.where(seq != 4)[0][0].item()
+        offset = 0
         for row in t.itertuples():
             if start <= row.start: # interval starts at or before the gene
                 start_idx = row.start - start + offset
