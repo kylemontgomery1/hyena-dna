@@ -71,9 +71,7 @@ def rank_zero_experiment(fn: Callable) -> Callable:
 class EnhancedNaNCheckerCallback(pl.Callback):
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
         loss = outputs
-        
-        inputs, targets = batch
-        logits = pl_module(inputs)
+        logits = pl_module(batch)
         
         if torch.isnan(logits).any() or torch.isinf(logits).any():
             print(f"NaNs or Infs detected in logits at batch {batch_idx}")
@@ -100,10 +98,7 @@ class EnhancedNaNCheckerCallback(pl.Callback):
         inputs, targets = batch
         print(f"Inputs at batch {batch_idx}: {inputs}")
         print(f"Targets at batch {batch_idx}: {targets}")
-        
-        with torch.no_grad():
-            outputs = pl_module(inputs)
-            print(f"Intermediate outputs at batch {batch_idx}: {outputs}")
+        print(f"Intermediate outputs at batch {batch_idx}: {pl_module(batch)}")
             
 
 class CustomWandbLogger(WandbLogger):
