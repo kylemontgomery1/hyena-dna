@@ -68,6 +68,41 @@ def rank_zero_experiment(fn: Callable) -> Callable:
 
     return experiment
 
+class EnhancedNaNCheckerCallback(pl.Callback):
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+        logits = outputs['logits']
+        loss = outputs['loss']
+        
+        if torch.isnan(logits).any() or torch.isinf(logits).any():
+            print(f"NaNs or Infs detected in logits at batch {batch_idx}")
+            self.print_intermediate_outputs(pl_module, batch, batch_idx)
+            trainer.should_stop = True
+            return
+        
+        if torch.isnan(loss).any() or torch.isinf(loss).any():
+            print(f"NaNs or Infs detected in loss at batch {batch_idx}")
+            print(f"Loss: {loss}")
+            self.print_intermediate_outputs(pl_module, batch, batch_idx)
+            trainer.should_stop = True
+            return
+        
+        for name, param in pl_module.named_parameters():
+            if param.grad is not None and (torch.isnan(param.grad).any() or torch.isinf(param.grad).any()):
+                print(f"NaNs or Infs in gradients of {name} at batch {batch_idx}")
+                print(f"Gradients: {param.grad}")
+                self.print_intermediate_outputs(pl_module, batch, batch_idx)
+                trainer.should_stop = True
+                return
+    
+    def print_intermediate_outputs(self, pl_module, batch, batch_idx):
+        inputs, targets = batch
+        print(f"Inputs at batch {batch_idx}: {inputs}")
+        print(f"Targets at batch {batch_idx}: {targets}")
+        
+        with torch.no_grad():
+            outputs = pl_module(inputs)
+            print(f"Intermediate outputs at batch {batch_idx}: {outputs}")
+            
 
 class CustomWandbLogger(WandbLogger):
 
@@ -644,6 +679,7 @@ def create_trainer(config, **kwargs):
         trainer_config_dict.pop('_target_')  # only hydra uses this to instantiate
         # Set DDPStrategy to work with pl.Trainer
         config.trainer.pop('strategy')
+        callbacks.append(EnhancedNaNCheckerCallback())
         trainer_config_dict['strategy'] = DDPStrategy(find_unused_parameters=False, gradient_as_bucket_view=True)
         trainer = pl.Trainer(**trainer_config_dict, callbacks=callbacks, logger=logger)
     else:
