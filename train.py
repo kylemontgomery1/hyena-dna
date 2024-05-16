@@ -71,7 +71,7 @@ def rank_zero_experiment(fn: Callable) -> Callable:
 class EnhancedNaNCheckerCallback(pl.Callback):
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
         loss = outputs
-        logits = pl_module(batch)
+        logits = pl_module(batch)[0]
         
         if torch.isnan(logits).any() or torch.isinf(logits).any():
             print(f"NaNs or Infs detected in logits at batch {batch_idx}")
