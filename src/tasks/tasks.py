@@ -165,6 +165,10 @@ class BaseTask:
         """Passes a batch through the encoder, backbone, and decoder"""
         # z holds arguments such as sequence length
         x, y, *z = batch # z holds extra dataloader info such as resolution
+        print(x)
+        print(x.shape)
+        print(y)
+        print(y.shape)
         if len(z) == 0:
             z = {}
         else:
