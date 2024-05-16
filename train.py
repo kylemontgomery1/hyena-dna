@@ -69,7 +69,7 @@ def rank_zero_experiment(fn: Callable) -> Callable:
     return experiment
 
 class EnhancedNaNCheckerCallback(pl.Callback):
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
         logits = outputs['logits']
         loss = outputs['loss']
         
