@@ -663,6 +663,7 @@ def create_trainer(config, **kwargs):
     # Init lightning trainer
     log.info(f"Instantiating trainer <{config.trainer._target_}>")
     # special processing for seqlen warmup scheduler (reload)
+    callbacks.append(EnhancedNaNCheckerCallback())
     if config.callbacks.get("seqlen_warmup_reload", None) is not None:
         # we need to instantiate manually instead of with hydra, since it expects a dict instead of a hydra config for the accumulate_grad_batches
         # so we convert everything to dicts (from hydra configs)
@@ -679,7 +680,6 @@ def create_trainer(config, **kwargs):
         trainer_config_dict.pop('_target_')  # only hydra uses this to instantiate
         # Set DDPStrategy to work with pl.Trainer
         config.trainer.pop('strategy')
-        callbacks.append(EnhancedNaNCheckerCallback())
         trainer_config_dict['strategy'] = DDPStrategy(find_unused_parameters=False, gradient_as_bucket_view=True)
         trainer = pl.Trainer(**trainer_config_dict, callbacks=callbacks, logger=logger)
     else:
