@@ -133,8 +133,6 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
         ]
         
         offset = torch.where(seq != 4)[0][0].item()
-        print(offset)
-        # offset = 0
         for row in t.itertuples():
             if start <= row.start: # interval starts at or before the gene
                 start_idx = row.start - start + offset
@@ -148,10 +146,7 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
                 targets[start_idx:end_idx] = 1
         # targets[:offset] = -100 # ignore the padding tokens
         
-        print(targets)
-        print(torch.unique(targets))
-        print(seq)
-        print(torch.unique(seq))
+        assert torch.equal(torch.unique(seq), torch.tensor([7, 8, 9, 10])), f"seq contains unrecgonized tokens, {torch.unique(seq)}"
         # assert not torch.any(targets[seq == 4] != -100), f"padding tokens should have been ignored, {targets[seq == 4]}"
         # assert not torch.isnan(seq).any(), f"seq contains NaNs: {seq}"
         # assert not torch.isnan(targets).any(), f"targets contains NaNs: {targets}"

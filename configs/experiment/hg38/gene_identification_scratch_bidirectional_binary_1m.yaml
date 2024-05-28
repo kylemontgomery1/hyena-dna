@@ -58,7 +58,7 @@ dataset:
   rc_aug: False
   add_eos: False
   batch_size: 1
-  replace_N_tokens: False
+  replace_N_tokens: True
   padding_size: left
   pad_interval: True
   d_output: 2
