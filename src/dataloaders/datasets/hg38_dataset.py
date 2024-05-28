@@ -69,7 +69,7 @@ class FastaInterval():
             self.chr_lens[chr_name] = len(self.seqs[chr_name])
 
 
-    def __call__(self, chr_name, start, end, max_length, return_augs = False, fill = True):
+    def __call__(self, chr_name, start, end, max_length, return_augs = False, fill = True, return_seq_indices = False):
         """
         max_length passed from dataset, not from init
         """
@@ -125,8 +125,11 @@ class FastaInterval():
                 
         else:
             seq = str(chromosome[start:end])
-
-        return seq
+            
+        if return_seq_indices:
+            return seq, start, end
+        else:
+            return seq
 
 class HG38Dataset(torch.utils.data.Dataset):
 

@@ -731,7 +731,7 @@ class GeneIdentification(HG38):
                  max_length_val=None, max_length_test=None, add_eos=True, batch_size=32, batch_size_eval=None, num_workers=1,
                  shuffle=False, shuffle_eval=False, fault_tolerant=False, ddp=False, fast_forward_epochs=None, 
                  fast_forward_batches=None, replace_N_token=False, padding_side='left', pad_interval=False, d_output=None, 
-                 pin_memory=False, drop_last=False, *args, **kwargs):
+                 pin_memory=False, drop_last=False, fill_to_max_length=False, *args, **kwargs):
         self.tokenizer_name = tokenizer_name
         self.rc_aug = rc_aug  # reverse compliment augmentation
         self.max_length = max_length
@@ -752,6 +752,7 @@ class GeneIdentification(HG38):
         self.d_output = d_output
         self.pin_memory = pin_memory
         self.drop_last = drop_last
+        self.fill_to_max_length = fill_to_max_length
 
         if fault_tolerant:
             assert self.shuffle
@@ -791,6 +792,7 @@ class GeneIdentification(HG38):
                                 replace_N_token=self.replace_N_token,
                                 pad_interval=self.pad_interval,
                                 d_output=self.d_output,
+                                fill_to_max_length = self.fill_to_max_length,
             )
             for split, max_len in zip(['train', 'valid', 'test'], [self.max_length, self.max_length_val, self.max_length_test])
         ]

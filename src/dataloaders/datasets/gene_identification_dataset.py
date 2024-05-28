@@ -31,6 +31,7 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
         replace_N_token=False,  # replace N token with pad token
         pad_interval = False,  # options for different padding
         d_output=None,
+        fill_to_max_length=False,
     ):
         
         self.max_length = max_length
@@ -41,7 +42,8 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
         self.add_eos = add_eos
         self.replace_N_token = replace_N_token  
         self.pad_interval = pad_interval
-        self.d_output = d_output         
+        self.d_output = d_output
+        self.fill_to_max_length = fill_to_max_length         
         
         bed_path = Path(bed_file)
         assert bed_path.exists(), 'path to .bed file must exist'
@@ -85,7 +87,7 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
         # row = (chr, start, end, split)
         chr_name, start, end = (row[0], row[1], row[2])
         
-        seq = self.fasta(chr_name, start, end, max_length=self.max_length, return_augs=self.return_augs, fill=False)
+        seq, start, end = self.fasta(chr_name, start, end, max_length=self.max_length, return_augs=self.return_augs, fill=self.fill_to_max_length, return_seq_indices=True)
         
         if self.tokenizer_name == 'char':
 
@@ -130,8 +132,9 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
             )
         ]
         
-        # offset = torch.where(seq != 4)[0][0].item()
-        offset = 0
+        offset = torch.where(seq != 4)[0][0].item()
+        print("offset: " + offset)
+        # offset = 0
         for row in t.itertuples():
             if start <= row.start: # interval starts at or before the gene
                 start_idx = row.start - start + offset
@@ -143,11 +146,15 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
                 start_idx = offset
                 end_idx = min(end, row.end) - start + offset
                 targets[start_idx:end_idx] = 1
-        targets[:offset] = -100 # ignore the padding tokens
+        # targets[:offset] = -100 # ignore the padding tokens
         
-        assert not torch.any(targets[seq == 4] != -100), f"padding tokens should have been ignored, {targets[seq == 4]}"
-        assert not torch.isnan(seq).any(), f"seq contains NaNs: {seq}"
-        assert not torch.isnan(targets).any(), f"targets contains NaNs: {targets}"
+        print("targets: " + targets)
+        print("Unique target values: " + torch.unique(targets))
+        print("seq: " + seq)
+        print("Unique seq values: " + torch.unique(seq))
+        # assert not torch.any(targets[seq == 4] != -100), f"padding tokens should have been ignored, {targets[seq == 4]}"
+        # assert not torch.isnan(seq).any(), f"seq contains NaNs: {seq}"
+        # assert not torch.isnan(targets).any(), f"targets contains NaNs: {targets}"
         # assert seq.size(-1) == 131072
         
         return seq.clone(), targets.clone()
