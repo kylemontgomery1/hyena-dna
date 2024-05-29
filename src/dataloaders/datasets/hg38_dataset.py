@@ -121,7 +121,7 @@ class FastaInterval():
                 seq = string_reverse_complement(seq)
 
             if self.pad_interval:
-                seq = ('.' * left_padding) + seq + ('.' * right_padding)
+                seq = ('[PAD]' * left_padding) + seq + ('[PAD]' * right_padding)
                 
         else:
             seq = str(chromosome[start:end])
