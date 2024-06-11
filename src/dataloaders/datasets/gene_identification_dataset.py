@@ -7,10 +7,41 @@ from random import randrange, random
 import numpy as np
 import os
 
-from src.dataloaders.datasets.hg38_char_tokenizer import CharacterTokenizer
-from src.dataloaders.datasets.hg38_dataset import FastaInterval
+class FastaInterval():
+    def __init__(
+        self,
+        fasta_file,
+    ):
+        fasta_file = Path(fasta_file)
+        assert fasta_file.exists(), 'path to fasta file must exist'
+
+        self.seqs = Fasta(str(fasta_file))
+
+        # calc len of each chromosome in fasta file, store in dict
+        self.chr_lens = {}
+        for chr_name in self.seqs.keys():
+            self.chr_lens[chr_name] = len(self.seqs[chr_name])
 
 
+    def __call__(self, chr_name, start, end, max_length, fill_to_max_length, fill_side):
+        """
+        max_length passed from dataset, not from init
+        """
+        interval_length = end - start
+        chromosome = self.seqs[chr_name]
+        chromosome_length = self.chr_lens[chr_name]
+        
+        if fill_to_max_length and interval_length < max_length:
+            if fill_side == 'left':
+                start = max(0, start - (max_length - interval_length))
+            elif fill_side == 'right':
+                end = min(chromosome_length, end + (max_length - interval_length))
+            else:
+                raise ValueError(f"fill_side must be either 'left' or 'right', got {fill_side}")
+        
+        seq = str(chromosome[start:end])
+        return seq, start, end
+                
 class GeneIdentificationDataset(torch.utils.data.Dataset):
     
     def __init__(
@@ -19,48 +50,31 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
         bed_file,
         fasta_file,
         ref_labels_file,
+        tokenizer,
+        tokenizer_name,
         max_length,
-        pad_max_length=None,
-        tokenizer=None,
-        tokenizer_name=None,
-        add_eos=False,
-        return_seq_indices=False,
-        shift_augs=None,
-        rc_aug=False,
-        return_augs=False,
-        replace_N_token=False,  # replace N token with pad token
-        pad_interval = False,  # options for different padding
-        d_output=None,
-        fill_to_max_length=False,
+        d_output,
+        pad_to_max_length,
+        truncate_to_max_length,
+        fill_side,
+        fill_to_max_length,
     ):
-        
-        self.max_length = max_length
-        self.pad_max_length = pad_max_length if pad_max_length is not None else max_length
-        self.tokenizer_name = tokenizer_name
         self.tokenizer = tokenizer
-        self.return_augs = return_augs
-        self.add_eos = add_eos
-        self.replace_N_token = replace_N_token  
-        self.pad_interval = pad_interval
+        self.tokenizer_name = tokenizer_name
+        self.max_length = max_length
         self.d_output = d_output
-        self.fill_to_max_length = fill_to_max_length         
+        self.pad_to_max_length = pad_to_max_length
+        self.truncate_to_max_length = truncate_to_max_length
+        self.fill_side = fill_side
+        self.fill_to_max_length = fill_to_max_length  
         
         bed_path = Path(bed_file)
         assert bed_path.exists(), 'path to .bed file must exist'
-
-        # read bed file
         df_raw = pd.read_csv(str(bed_path), sep = '\t', names=['chr_name', 'start', 'end', 'split'])
-        
-        # select only split df
         self.df = df_raw[df_raw['split'] == split]
 
         self.fasta = FastaInterval(
             fasta_file = fasta_file,
-            # max_length = max_length,
-            return_seq_indices = return_seq_indices,
-            shift_augs = shift_augs,
-            rc_aug = rc_aug,
-            pad_interval = pad_interval,
         )
         
         ref_label_path = Path(ref_labels_file)
@@ -77,51 +91,31 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.df)
 
-    def replace_value(self, x, old_value, new_value):
-        return torch.where(x == old_value, new_value, x)
-
     def __getitem__(self, idx):
         """Returns a sequence of specified len"""
-        # sample a random row from df
-        row = self.df.iloc[idx]
-        # row = (chr, start, end, split)
+        row = self.df.iloc[idx] # row = (chr, start, end, split)
         chr_name, start, end = (row[0], row[1], row[2])
         
-        seq, start, end = self.fasta(chr_name, start, end, max_length=self.max_length, return_augs=self.return_augs, fill=self.fill_to_max_length, return_seq_indices=True)
+        seq, start, end = self.fasta(chr_name, start, end, max_length=self.max_length, fill_to_max_length=self.fill_to_max_length)
         
-        if self.tokenizer_name == 'char':
-
-            seq = self.tokenizer(seq,
-                add_special_tokens=True if self.add_eos else False,  # this is what controls adding eos
-                # padding="max_length",
-                padding=False,
-                max_length=self.max_length,
-                truncation=True,
-            )
-            seq = seq["input_ids"]  # get input_ids
-
-        elif self.tokenizer_name == 'bpe':
-            seq = self.tokenizer(seq, 
-                # add_special_tokens=False, 
-                padding="max_length",
-                max_length=self.pad_max_length,
-                truncation=True,
-            ) 
-            # get input_ids
-            if self.add_eos:
-                seq = seq["input_ids"][1:]  # remove the bos, keep the eos token
-            else:
-                seq = seq["input_ids"][1:-1]  # remove both special tokens
+        seq_tokenized = self.tokenizer(seq,
+            add_special_tokens=False, 
+            max_length=self.max_length,
+            padding="max_length" if self.pad_to_max_length else False,
+            truncation=self.truncate_to_max_length,
+            return_offsets_mapping=self.tokenizer_name == 'bpe',
+            return_overflowing_tokens=self.tokenizer_name == 'bpe',
+        )
+        seq = torch.LongTensor(seq_tokenized["input_ids"]) 
         
-        # convert to tensor
-        seq = torch.LongTensor(seq)  # hack, remove the initial cls tokens for now
+        # adjust start to acount for truncation
+        if seq_tokenized['num_truncated_tokens'] > 0 and self.tokenizer.truncation_side == 'left':
+            start += len(self.tokenizer.batch_decode(seq_tokenized['overflowing_tokens'])[0]) 
         
-        if self.replace_N_token:
-            # replace N token with a pad token, so we can ignore it in the loss
-            seq = self.replace_value(seq, self.tokenizer._vocab_str_to_int['N'], self.tokenizer.pad_token_id)
-
-        targets = torch.zeros_like(seq)
-        start, end = int(start), int(end)
+        # computing padding offset
+        offset = (seq == self.tokenizer.pad_token_id).sum().item()
+        
+        targets = torch.zeros_like(seq) if self.tokenizer_name == 'char' else torch.zeros(offset + end - start, dtype=torch.long)
         
         t = self.labels[
             (self.labels['seqname'] == chr_name) & 
@@ -132,24 +126,29 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
             )
         ]
         
-        offset = torch.where(seq != 4)[0][0].item()
         for row in t.itertuples():
-            if start <= row.start: # interval starts at or before the gene
-                start_idx = row.start - start + offset
-                end_idx = min(end, row.end) - start + offset
-                targets[start_idx:end_idx] = 1
-                if self.d_output == 3:
-                    targets[start_idx] = 2 # start of the gene represented by label "2"
-            else: # start > row.start implies the gene starts before the interval
-                start_idx = offset
-                end_idx = min(end, row.end) - start + offset
-                targets[start_idx:end_idx] = 1
-        # targets[:offset] = -100 # ignore the padding tokens
+            start_idx = max(row.start - start + offset, offset)
+            end_idx = min(start_idx + (row.end - row.start), seq.size(0))
+            targets[start_idx:end_idx] = 1
+            
+        print(seq.size(), targets.size())
+        print(seq_tokenized)
         
-        assert torch.equal(torch.unique(seq), torch.tensor([7, 8, 9, 10])), f"seq contains unrecgonized tokens, {torch.unique(seq)}, {seq}"
-        # assert not torch.any(targets[seq == 4] != -100), f"padding tokens should have been ignored, {targets[seq == 4]}"
-        # assert not torch.isnan(seq).any(), f"seq contains NaNs: {seq}"
-        # assert not torch.isnan(targets).any(), f"targets contains NaNs: {targets}"
-        # assert seq.size(-1) == 131072
+        # if self.tokenizer_name == 'bpe': # combining targets for BPE tokenization
+        #     assert self.d_output == 4, 'd_output must be 4 for BPE tokenization'
+        #     new_targets = torch.zeros_like(seq)
+        #     pos = 0
+        #     for i in range(new_targets.size(0)):
+        #         if i < offset: 
+        #             new_targets[i] = -100
+        #         else:
+                    
+                    
+                
+                
+                
+            
+            
         
+    
         return seq.clone(), targets.clone()

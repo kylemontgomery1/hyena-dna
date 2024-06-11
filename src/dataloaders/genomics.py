@@ -727,32 +727,34 @@ class GeneIdentification(HG38):
     _name_ = "gene_identification"
     l_output = 0  # need to set this for decoder to work correctly
 
-    def __init__(self, bed_file, fasta_file, ref_labels_file, tokenizer_name=None, max_length=1024, rc_aug=False,
-                 max_length_val=None, max_length_test=None, add_eos=True, batch_size=32, batch_size_eval=None, num_workers=1,
-                 shuffle=False, shuffle_eval=False, fault_tolerant=False, ddp=False, fast_forward_epochs=None, 
-                 fast_forward_batches=None, replace_N_token=False, padding_side='left', pad_interval=False, d_output=None, 
-                 pin_memory=False, drop_last=False, fill_to_max_length=False, *args, **kwargs):
+    def __init__(self, bed_file, fasta_file, ref_labels_file, tokenizer_name=None, max_length=1024,
+                 max_length_val=None, max_length_test=None, batch_size=32, batch_size_eval=None, num_workers=1,
+                 shuffle=False, fault_tolerant=False, ddp=False, fast_forward_epochs=None, 
+                 fast_forward_batches=None, pin_memory=False, drop_last=False, d_output=None,
+                 padding_side='left', pad_to_max_length=False, truncation_side='left', truncate_to_max_length=False,
+                 fill_side='left', fill_to_max_length=False, *args, **kwargs):
+        self.bed_file = bed_file
+        self.fasta_file = fasta_file
+        self.ref_labels_file = ref_labels_file
         self.tokenizer_name = tokenizer_name
-        self.rc_aug = rc_aug  # reverse compliment augmentation
         self.max_length = max_length
         self.max_length_val = max_length_val if max_length_val is not None else max_length
         self.max_length_test = max_length_test if max_length_test is not None else max_length
-        self.add_eos = add_eos
         self.batch_size = batch_size
         self.batch_size_eval = batch_size_eval if batch_size_eval is not None else self.batch_size
         self.num_workers = num_workers
         self.shuffle = shuffle
-        self.shuffle_eval = shuffle_eval
-        self.bed_file = bed_file
-        self.fasta_file = fasta_file
-        self.ref_labels_file = ref_labels_file
-        self.replace_N_token = replace_N_token
-        self.pad_interval = pad_interval
-        self.padding_side = padding_side     
-        self.d_output = d_output
         self.pin_memory = pin_memory
         self.drop_last = drop_last
+        self.d_output = d_output
+        self.padding_side = padding_side 
+        self.pad_to_max_length = pad_to_max_length
+        self.truncation_side = truncation_side
+        self.truncate_to_max_length = truncate_to_max_length
+        self.fill_side = fill_side
         self.fill_to_max_length = fill_to_max_length
+        
+        assert padding_side=='left' and truncation_side=='left' and fill_side=='left', "Only left padding, truncation, and filling is supported for now."
 
         if fault_tolerant:
             assert self.shuffle
@@ -771,39 +773,43 @@ class GeneIdentification(HG38):
             print("**Using Char-level tokenizer**")
             self.tokenizer = CharacterTokenizer(
                 characters=['A', 'C', 'G', 'T', 'N'],
-                model_max_length=self.max_length+2,
+                model_max_length=self.max_length,
                 add_special_tokens=False,
                 padding_side=self.padding_side,
+                truncation_side=self.truncation_side,
             )
+        elif self.tokenizer_nam == 'bpe':
+            print("**using pretrained AIRI tokenizer**")
+            self.tokenizer = AutoTokenizer.from_pretrained('AIRI-Institute/gena-lm-bert-base')
+            self.tokenizer.model_max_length = self.max_length
+            self.tokenizer.padding_side = self.padding_side
+            self.tokenizer.truncation_side = self.truncation_side
 
         self.dataset_train, self.dataset_val, self.dataset_test = [
-            GeneIdentificationDataset(split=split,
+            GeneIdentificationDataset(
+                                split=split,
                                 bed_file=self.bed_file,
                                 fasta_file=self.fasta_file,
                                 ref_labels_file=self.ref_labels_file,
-                                max_length=max_len,
                                 tokenizer=self.tokenizer,
                                 tokenizer_name=self.tokenizer_name,
-                                add_eos=self.add_eos,
-                                return_seq_indices=False,
-                                shift_augs=None,
-                                rc_aug=self.rc_aug,
-                                return_augs=False,
-                                replace_N_token=self.replace_N_token,
-                                pad_interval=self.pad_interval,
+                                max_length=max_len,
                                 d_output=self.d_output,
-                                fill_to_max_length = self.fill_to_max_length,
+                                pad_to_max_length=self.pad_to_max_length,
+                                truncate_to_max_length=self.truncate_to_max_length,
+                                fill_side = self.fill_side,
+                                fill_to_max_length=self.fill_to_max_length,
             )
             for split, max_len in zip(['train', 'valid', 'test'], [self.max_length, self.max_length_val, self.max_length_test])
         ]
 
     def val_dataloader(self, *args: Any, **kwargs: Any) -> Union[DataLoader, List[DataLoader]]:
         """ The val dataloader """
-        return self._data_loader(self.dataset_val, batch_size=self.batch_size_eval, shuffle=self.shuffle_eval)
+        return self._data_loader(self.dataset_val, batch_size=self.batch_size_eval)
 
     def test_dataloader(self, *args: Any, **kwargs: Any) -> Union[DataLoader, List[DataLoader]]:
         """ The test dataloader """
-        return self._data_loader(self.dataset_test, batch_size=self.batch_size_eval, shuffle=self.shuffle_eval)
+        return self._data_loader(self.dataset_test, batch_size=self.batch_size_eval)
 
 
 

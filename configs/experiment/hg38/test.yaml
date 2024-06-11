@@ -53,15 +53,15 @@ dataset:
   bed_file: /scratch/kyle/hyena-dna/data/hg38/human-sequences.bed
   fasta_file: /scratch/kyle/hyena-dna/data/hg38/hg38.ml.fa
   ref_labels_file: /scratch/kyle/hyena-dna/data/hg38/hg38.refGene.gtf
-  tokenizer_name: char
+  tokenizer_name: bpe
   max_length: 1000000
-  rc_aug: False
-  add_eos: False
   batch_size: 1
-  replace_N_tokens: False
+  num_workers: 1
   padding_size: left
-  pad_interval: True
-  d_output: 2
+  pad_to_max_length: True
+  truncation_side: left
+  truncate_to_max_length: True
+  fill_side: left
   fill_to_max_length: True
 
 scheduler:
