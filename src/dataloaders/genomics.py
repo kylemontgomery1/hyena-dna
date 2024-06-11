@@ -732,7 +732,7 @@ class GeneIdentification(HG38):
                  shuffle=False, fault_tolerant=False, ddp=False, fast_forward_epochs=None, 
                  fast_forward_batches=None, pin_memory=False, drop_last=False, d_output=None,
                  padding_side='left', pad_to_max_length=False, truncation_side='left', truncate_to_max_length=False,
-                 fill_side='left', fill_to_max_length=False, *args, **kwargs):
+                 fill_side='left', fill_to_max_length=False, length_multiplier=1, *args, **kwargs):
         self.bed_file = bed_file
         self.fasta_file = fasta_file
         self.ref_labels_file = ref_labels_file
@@ -753,6 +753,7 @@ class GeneIdentification(HG38):
         self.truncate_to_max_length = truncate_to_max_length
         self.fill_side = fill_side
         self.fill_to_max_length = fill_to_max_length
+        self.length_multiplier = length_multiplier
         
         assert padding_side=='left' and truncation_side=='left' and fill_side=='left', "Only left padding, truncation, and filling is supported for now."
 
@@ -778,7 +779,7 @@ class GeneIdentification(HG38):
                 padding_side=self.padding_side,
                 truncation_side=self.truncation_side,
             )
-        elif self.tokenizer_nam == 'bpe':
+        elif self.tokenizer_name == 'bpe':
             print("**using pretrained AIRI tokenizer**")
             self.tokenizer = AutoTokenizer.from_pretrained('AIRI-Institute/gena-lm-bert-base')
             self.tokenizer.model_max_length = self.max_length
@@ -799,6 +800,7 @@ class GeneIdentification(HG38):
                                 truncate_to_max_length=self.truncate_to_max_length,
                                 fill_side = self.fill_side,
                                 fill_to_max_length=self.fill_to_max_length,
+                                length_multiplier=self.length_multiplier,
             )
             for split, max_len in zip(['train', 'valid', 'test'], [self.max_length, self.max_length_val, self.max_length_test])
         ]

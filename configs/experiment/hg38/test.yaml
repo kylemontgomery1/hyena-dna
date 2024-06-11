@@ -8,7 +8,7 @@ model:
   d_model: 256
   n_layer: 8
   d_inner: 1024
-  vocab_size: 12
+  vocab_size: 32000
   resid_dropout: 0.0
   embed_dropout: 0.1
   fused_mlp: False # figure out how to use fused MLP, maybe only with bf16 + a100
@@ -24,7 +24,7 @@ model:
     emb_dim: 5
     filter_order: 64
     short_filter_order: 3
-    l_max: ${eval:${dataset.max_length}+2}
+    l_max: ${eval:${dataset.max_length}}
     modulate: True
     w: 10
     lr: ${optimizer.lr}

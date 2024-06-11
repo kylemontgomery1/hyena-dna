@@ -58,6 +58,7 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
         truncate_to_max_length,
         fill_side,
         fill_to_max_length,
+        length_multiplier,
     ):
         self.tokenizer = tokenizer
         self.tokenizer_name = tokenizer_name
@@ -66,7 +67,8 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
         self.pad_to_max_length = pad_to_max_length
         self.truncate_to_max_length = truncate_to_max_length
         self.fill_side = fill_side
-        self.fill_to_max_length = fill_to_max_length  
+        self.fill_to_max_length = fill_to_max_length
+        self.length_multiplier = length_multiplier
         
         bed_path = Path(bed_file)
         assert bed_path.exists(), 'path to .bed file must exist'
@@ -96,7 +98,7 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
         row = self.df.iloc[idx] # row = (chr, start, end, split)
         chr_name, start, end = (row[0], row[1], row[2])
         
-        seq, start, end = self.fasta(chr_name, start, end, max_length=self.max_length, fill_to_max_length=self.fill_to_max_length)
+        seq, start, end = self.fasta(chr_name, start, end, max_length=self.length_multiplier*self.max_length, fill_to_max_length=self.fill_to_max_length)
         
         seq_tokenized = self.tokenizer(seq,
             add_special_tokens=False, 
@@ -104,16 +106,15 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
             padding="max_length" if self.pad_to_max_length else False,
             truncation=self.truncate_to_max_length,
             return_offsets_mapping=self.tokenizer_name == 'bpe',
-            return_overflowing_tokens=self.tokenizer_name == 'bpe',
         )
         seq = torch.LongTensor(seq_tokenized["input_ids"]) 
         
-        # adjust start to acount for truncation
-        if seq_tokenized['num_truncated_tokens'] > 0 and self.tokenizer.truncation_side == 'left':
-            start += len(self.tokenizer.batch_decode(seq_tokenized['overflowing_tokens'])[0]) 
-        
         # computing padding offset
         offset = (seq == self.tokenizer.pad_token_id).sum().item()
+        
+        # if no padding, but truncation was done on the left, we need to adjust the start position
+        if offset == 0 and self.tokenizer.truncation_side == 'left':
+            start = end - len(self.tokenizer.batch_decode(seq, skip_special_tokens=True)[0])
         
         targets = torch.zeros_like(seq) if self.tokenizer_name == 'char' else torch.zeros(offset + end - start, dtype=torch.long)
         
@@ -131,17 +132,13 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
             end_idx = min(start_idx + (row.end - row.start), seq.size(0))
             targets[start_idx:end_idx] = 1
             
-        print(seq.size(), targets.size())
-        print(seq_tokenized)
-        
-        # if self.tokenizer_name == 'bpe': # combining targets for BPE tokenization
-        #     assert self.d_output == 4, 'd_output must be 4 for BPE tokenization'
-        #     new_targets = torch.zeros_like(seq)
-        #     pos = 0
-        #     for i in range(new_targets.size(0)):
-        #         if i < offset: 
-        #             new_targets[i] = -100
-        #         else:
+        if self.tokenizer_name == 'bpe': # combining targets for BPE tokenization
+            new_targets = torch.zeros_like(seq)
+            for tok_idx, (tok_start, tok_end) in enumerate(seq_tokenized['offset_mapping']):
+                if tok_start == 0 and tok_end == 0: # pad token
+                    new_targets[tok_idx] = -100
+                else:
+                    new_targets[tok_idx] = 1 if targets[offset+tok_start:offset+tok_end].sum() > 0 else 0 
                     
                     
                 
