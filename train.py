@@ -16,6 +16,7 @@ from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.utilities import rank_zero_only, rank_zero_warn
 from pytorch_lightning.strategies.ddp import DDPStrategy
+from pytorch_lightning.callbacks import ModelCheckpoint
 from tqdm.auto import tqdm
 from pytorch_lightning.strategies.ddp import DDPStrategy
 
@@ -647,6 +648,15 @@ def create_trainer(config, **kwargs):
         trainer_config_dict['strategy'] = DDPStrategy(find_unused_parameters=False, gradient_as_bucket_view=True)
         trainer = pl.Trainer(**trainer_config_dict, callbacks=callbacks, logger=logger)
     else:
+        checkpoint_callback = ModelCheckpoint(
+            dirpath='checkpoints/',  # Directory to save the checkpoints
+            filename='model-{epoch:02d}-{val_loss:.2f}',  # Filename format
+            save_top_k=-1,  # Save all checkpoints
+            save_weights_only=True,  # Only save model weights
+            save_last=True,  # Additionally save the last model
+            every_n_epochs=1  # Save checkpoint after every epoch
+        )
+        callbacks = callbacks + checkpoint_callback
         trainer = hydra.utils.instantiate(config.trainer, callbacks=callbacks, logger=logger)    
 
     return trainer
@@ -678,9 +688,6 @@ def train(config):
         trainer.fit(model)
     if config.train.test:
         trainer.test(model)
-
-
-
 
 @hydra.main(config_path="configs", config_name="config.yaml")
 def main(config: OmegaConf):

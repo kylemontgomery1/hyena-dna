@@ -11,7 +11,7 @@ model:
   vocab_size: 32000
   resid_dropout: 0.0
   embed_dropout: 0.1
-  fused_mlp: False # figure out how to use fused MLP, maybe only with bf16 + a100
+  fused_mlp: True # figure out how to use fused MLP, maybe only with bf16 + a100
   fused_dropout_add_ln: True
   residual_in_fp32: True
   pad_vocab_size_multiple: 8
@@ -24,7 +24,7 @@ model:
     emb_dim: 5
     filter_order: 64
     short_filter_order: 3
-    l_max: ${eval:${dataset.max_length}}
+    l_max: ${dataset.max_length}
     modulate: True
     w: 10
     lr: ${optimizer.lr}
@@ -34,20 +34,26 @@ model:
 
 task:
   _name_: base
-  loss: cross_entropy
-  metrics: 
-    - f1_binary_ignore_index
-  torchmetrics: null
+  loss: binary_cross_entropy
+  torchmetrics: 
+    - AUROC
+    - Precision
+    - Recall
+    - F1
 
 trainer:
   accelerator: gpu
   devices: 1
   num_nodes: 1
   accumulate_grad_batches: ${div_up:${train.global_batch_size}, ${eval:${trainer.devices} * ${dataset.batch_size} * ${trainer.num_nodes}}}
-  max_epochs: 100
-  precision: 16
+  precision: bf16
   gradient_clip_val: 1.0
   track_grad_norm: 2
+  val_check_interval: 0.1
+  max_epochs: 5
+  min_epochs: 5
+  log_every_n_steps: 1
+  fast_dev_run: 10
 
 dataset:
   bed_file: /scratch/kyle/hyena-dna/data/hg38/human-sequences.bed
@@ -63,6 +69,7 @@ dataset:
   truncate_to_max_length: True
   fill_side: left
   fill_to_max_length: True
+  length_multiplier: 1
 
 scheduler:
   t_in_epochs: False
@@ -72,13 +79,14 @@ scheduler:
   lr_min: ${eval:0.1 * ${optimizer.lr}}
 
 optimizer:
-  lr: 6e-5
+  lr: 6e-4
   weight_decay: 0.1
 
 train:
   gpu_mem: ${eval:"round(float(__import__('subprocess').check_output('nvidia-smi -i 0 --query-gpu=memory.total --format=csv,noheader,nounits', shell=True).strip().decode()) / 1000)"}
   seed: 2222
-  global_batch_size: 128
+  global_batch_size: 256
+  test: true
   pretrained_model_strict_load: False 
   pretrained_model_path: null
   pretrained_model_state_hook:

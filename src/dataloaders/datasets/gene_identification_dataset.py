@@ -98,7 +98,7 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
         row = self.df.iloc[idx] # row = (chr, start, end, split)
         chr_name, start, end = (row[0], row[1], row[2])
         
-        seq, start, end = self.fasta(chr_name, start, end, max_length=self.length_multiplier*self.max_length, fill_to_max_length=self.fill_to_max_length)
+        seq, start, end = self.fasta(chr_name, start, end, max_length=self.length_multiplier*self.max_length, fill_to_max_length=self.fill_to_max_length, fill_side=self.fill_side)
         
         seq_tokenized = self.tokenizer(seq,
             add_special_tokens=False, 
@@ -108,6 +108,8 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
             return_offsets_mapping=self.tokenizer_name == 'bpe',
         )
         seq = torch.LongTensor(seq_tokenized["input_ids"]) 
+        
+        print(f"{len(seq)=}")
         
         # computing padding offset
         offset = (seq == self.tokenizer.pad_token_id).sum().item()
@@ -139,13 +141,6 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
                     new_targets[tok_idx] = -100
                 else:
                     new_targets[tok_idx] = 1 if targets[offset+tok_start:offset+tok_end].sum() > 0 else 0 
-                    
-                    
-                
-                
-                
-            
-            
-        
-    
+            targets = new_targets
+
         return seq.clone(), targets.clone()

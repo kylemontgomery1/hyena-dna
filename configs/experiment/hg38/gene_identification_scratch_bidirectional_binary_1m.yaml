@@ -44,10 +44,14 @@ trainer:
   devices: 1
   num_nodes: 1
   accumulate_grad_batches: ${div_up:${train.global_batch_size}, ${eval:${trainer.devices} * ${dataset.batch_size} * ${trainer.num_nodes}}}
-  max_epochs: 100
-  precision: 16
+  precision: bf16
   gradient_clip_val: 1.0
   track_grad_norm: 2
+  val_check_interval: 0.1
+  max_epochs: 5
+  min_epochs: 5
+  log_every_n_steps: 1
+  fast_dev_run: 10
 
 dataset:
   bed_file: /scratch/kyle/hyena-dna/data/hg38/human-sequences.bed
@@ -78,7 +82,8 @@ optimizer:
 train:
   gpu_mem: ${eval:"round(float(__import__('subprocess').check_output('nvidia-smi -i 0 --query-gpu=memory.total --format=csv,noheader,nounits', shell=True).strip().decode()) / 1000)"}
   seed: 2222
-  global_batch_size: 128
+  global_batch_size: 256
+  test: True
   pretrained_model_strict_load: False 
   pretrained_model_path: null
   pretrained_model_state_hook:
