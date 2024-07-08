@@ -1,18 +1,10 @@
 _name_: gene_identification
-bed_file: /scratch/kyle/hyena-dna/data/hg38/human-sequences.bed
+bed_file: /scratch/kyle/hyena-dna/data/hg38/equences.bed
 fasta_file: /scratch/kyle/hyena-dna/data/hg38/hg38.ml.fa
 ref_labels_file: /scratch/kyle/hyena-dna/data/hg38/hg38.refGene.gtf
-tokenizer_name: char
-max_length: 160000
-rc_aug: False
-add_eos: True
-batch_size: 256
-replace_N_tokens: False
-use_padding: True
-padding_size: right
-pad_interval: False
-d_output: 2
+max_length: 1000000
+batch_size: 1
 shuffle: True
 __train_len: 38171  
-__l_max: ${eval:${.max_length}+2}
+__l_max: ${eval:${.max_length}}
 

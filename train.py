@@ -199,9 +199,6 @@ class SequenceLightningModule(pl.LightningModule):
         if hasattr(self.task, 'loss_val'):
             self.loss_val = self.task.loss_val
         self.metrics = self.task.metrics
-        self.train_torchmetrics = self.task.train_torchmetrics
-        self.val_torchmetrics = self.task.val_torchmetrics
-        self.test_torchmetrics = self.task.test_torchmetrics
 
     def load_state_dict(self, state_dict, strict=False):
         if self.hparams.train.pretrained_model_state_hook['_name_'] is not None:
@@ -333,32 +330,18 @@ class SequenceLightningModule(pl.LightningModule):
         metrics = self.metrics(x, y, **w)
         metrics["loss"] = loss
         metrics = {f"{prefix}/{k}": v for k, v in metrics.items()}
-
-        # Calculate torchmetrics
-        torchmetrics = getattr(self, f'{prefix}_torchmetrics')
-        torchmetrics(x, y, loss=loss)
         
-        log_on_step = 'eval' in self.hparams and self.hparams.eval.get('log_on_step', False) and prefix == 'train'
+        print(metrics)
 
         self.log_dict(
             metrics,
-            on_step=log_on_step,
+            on_step=False,
             on_epoch=True,
             prog_bar=True,
             add_dataloader_idx=False,
             sync_dist=True,
         )
 
-        # log the whole dict, otherwise lightning takes the mean to reduce it
-        # https://pytorch-lightning.readthedocs.io/en/stable/visualize/logging_advanced.html#enable-metrics-for-distributed-training
-        self.log_dict(
-            torchmetrics,
-            on_step=log_on_step,
-            on_epoch=True,
-            prog_bar=True,
-            add_dataloader_idx=False,
-            sync_dist=True,
-        )
         return loss
 
     def on_train_epoch_start(self):
@@ -428,19 +411,9 @@ class SequenceLightningModule(pl.LightningModule):
         return loss
 
     def validation_step(self, batch, batch_idx, dataloader_idx=0):
-        ema = (
-            self.val_loader_names[dataloader_idx].endswith("/ema")
-            and self.optimizers().optimizer.stepped
-        )  # There's a bit of an annoying edge case with the first (0-th) epoch; it has to be excluded due to the initial sanity check
-        if ema:
-            self.optimizers().swap_ema()
-        loss = self._shared_step(
+        return self._shared_step(
             batch, batch_idx, prefix=self.val_loader_names[dataloader_idx]
         )
-        if ema:
-            self.optimizers().swap_ema()
-
-        return loss
 
     def test_step(self, batch, batch_idx, dataloader_idx=0):
         return self._shared_step(
@@ -543,40 +516,26 @@ class SequenceLightningModule(pl.LightningModule):
         else:
             return [prefix], [loaders]
 
-    def _eval_dataloaders(self):
-        # Return all val + test loaders
-        val_loaders = self.dataset.val_dataloader(**self.hparams.loader)
-        test_loaders = self.dataset.test_dataloader(**self.hparams.loader)
-        val_loader_names, val_loaders = self._eval_dataloaders_names(val_loaders, "val")
-        test_loader_names, test_loaders = self._eval_dataloaders_names(
-            test_loaders, "test"
-        )
-
-        # Duplicate datasets for ema
-        if self.hparams.train.ema > 0.0:
-            val_loader_names += [name + "/ema" for name in val_loader_names]
-            val_loaders = val_loaders + val_loaders
-            test_loader_names += [name + "/ema" for name in test_loader_names]
-            test_loaders = test_loaders + test_loaders
-
-        # adding option to only have val loader at eval (eg if test is duplicate)
-        if self.hparams.train.get("remove_test_loader_in_eval", False):
+    def _eval_dataloaders(self, split):
+        
+        if split=='val':
+            val_loaders = self.dataset.val_dataloader(**self.hparams.loader)
+            val_loader_names, val_loaders = self._eval_dataloaders_names(val_loaders, "val")
             return val_loader_names, val_loaders
-        # adding option to only have test loader at eval
-        elif self.hparams.train.get("remove_val_loader_in_eval", False):
+        
+        if split=='test':
+            test_loaders = self.dataset.test_dataloader(**self.hparams.loader)
+            test_loader_names, test_loaders = self._eval_dataloaders_names(test_loaders, "test")
             return test_loader_names, test_loaders
-        # default behavior is to add test loaders in eval
-        else:
-            return val_loader_names + test_loader_names, val_loaders + test_loaders
 
     def val_dataloader(self):
-        val_loader_names, val_loaders = self._eval_dataloaders()
+        val_loader_names, val_loaders = self._eval_dataloaders("val")
         self.val_loader_names = val_loader_names
         return val_loaders
 
     def test_dataloader(self):
-        test_loader_names, test_loaders = self._eval_dataloaders()
-        self.test_loader_names = ["final/" + name for name in test_loader_names]
+        test_loader_names, test_loaders = self._eval_dataloaders("split")
+        self.test_loader_names = test_loader_names
         return test_loaders
 
 
@@ -648,15 +607,6 @@ def create_trainer(config, **kwargs):
         trainer_config_dict['strategy'] = DDPStrategy(find_unused_parameters=False, gradient_as_bucket_view=True)
         trainer = pl.Trainer(**trainer_config_dict, callbacks=callbacks, logger=logger)
     else:
-        checkpoint_callback = ModelCheckpoint(
-            dirpath='checkpoints/',  # Directory to save the checkpoints
-            filename='model-{epoch:02d}-{val_loss:.2f}',  # Filename format
-            save_top_k=-1,  # Save all checkpoints
-            save_weights_only=True,  # Only save model weights
-            save_last=True,  # Additionally save the last model
-            every_n_epochs=1  # Save checkpoint after every epoch
-        )
-        callbacks = callbacks + checkpoint_callback
         trainer = hydra.utils.instantiate(config.trainer, callbacks=callbacks, logger=logger)    
 
     return trainer

@@ -727,12 +727,10 @@ class GeneIdentification(HG38):
     _name_ = "gene_identification"
     l_output = 0  # need to set this for decoder to work correctly
 
-    def __init__(self, bed_file, fasta_file, ref_labels_file, tokenizer_name=None, max_length=1024,
+    def __init__(self, bed_file, fasta_file, ref_labels_file, tokenizer_name="bpe", max_length=int(1e6),
                  max_length_val=None, max_length_test=None, batch_size=32, batch_size_eval=None, num_workers=1,
-                 shuffle=False, fault_tolerant=False, ddp=False, fast_forward_epochs=None, 
-                 fast_forward_batches=None, pin_memory=False, drop_last=False, d_output=None,
-                 padding_side='left', pad_to_max_length=False, truncation_side='left', truncate_to_max_length=False,
-                 fill_side='left', fill_to_max_length=False, length_multiplier=1, *args, **kwargs):
+                 shuffle=True, fault_tolerant=False, ddp=False, fast_forward_epochs=None, 
+                 fast_forward_batches=None, pin_memory=False, drop_last=False, *args, **kwargs):
         self.bed_file = bed_file
         self.fasta_file = fasta_file
         self.ref_labels_file = ref_labels_file
@@ -746,16 +744,6 @@ class GeneIdentification(HG38):
         self.shuffle = shuffle
         self.pin_memory = pin_memory
         self.drop_last = drop_last
-        self.d_output = d_output
-        self.padding_side = padding_side 
-        self.pad_to_max_length = pad_to_max_length
-        self.truncation_side = truncation_side
-        self.truncate_to_max_length = truncate_to_max_length
-        self.fill_side = fill_side
-        self.fill_to_max_length = fill_to_max_length
-        self.length_multiplier = length_multiplier
-        
-        assert padding_side=='left' and truncation_side=='left' and fill_side=='left', "Only left padding, truncation, and filling is supported for now."
 
         if fault_tolerant:
             assert self.shuffle
@@ -770,21 +758,9 @@ class GeneIdentification(HG38):
 
     def setup(self, stage=None):
 
-        if self.tokenizer_name == 'char':
-            print("**Using Char-level tokenizer**")
-            self.tokenizer = CharacterTokenizer(
-                characters=['A', 'C', 'G', 'T', 'N'],
-                model_max_length=self.max_length,
-                add_special_tokens=False,
-                padding_side=self.padding_side,
-                truncation_side=self.truncation_side,
-            )
-        elif self.tokenizer_name == 'bpe':
-            print("**using pretrained AIRI tokenizer**")
-            self.tokenizer = AutoTokenizer.from_pretrained('AIRI-Institute/gena-lm-bert-base')
-            self.tokenizer.model_max_length = self.max_length
-            self.tokenizer.padding_side = self.padding_side
-            self.tokenizer.truncation_side = self.truncation_side
+        assert self.tokenizer_name == "bpe"
+        print("**using pretrained AIRI tokenizer**")
+        self.tokenizer = AutoTokenizer.from_pretrained('AIRI-Institute/gena-lm-bert-base')
 
         self.dataset_train, self.dataset_val, self.dataset_test = [
             GeneIdentificationDataset(
@@ -795,12 +771,6 @@ class GeneIdentification(HG38):
                                 tokenizer=self.tokenizer,
                                 tokenizer_name=self.tokenizer_name,
                                 max_length=max_len,
-                                d_output=self.d_output,
-                                pad_to_max_length=self.pad_to_max_length,
-                                truncate_to_max_length=self.truncate_to_max_length,
-                                fill_side = self.fill_side,
-                                fill_to_max_length=self.fill_to_max_length,
-                                length_multiplier=self.length_multiplier,
             )
             for split, max_len in zip(['train', 'valid', 'test'], [self.max_length, self.max_length_val, self.max_length_test])
         ]

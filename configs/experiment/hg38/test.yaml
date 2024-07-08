@@ -11,7 +11,7 @@ model:
   vocab_size: 32000
   resid_dropout: 0.0
   embed_dropout: 0.1
-  fused_mlp: True # figure out how to use fused MLP, maybe only with bf16 + a100
+  fused_mlp: False # figure out how to use fused MLP, maybe only with bf16 + a100
   fused_dropout_add_ln: True
   residual_in_fp32: True
   pad_vocab_size_multiple: 8
@@ -34,12 +34,15 @@ model:
 
 task:
   _name_: base
-  loss: binary_cross_entropy
-  torchmetrics: 
-    - AUROC
-    - Precision
-    - Recall
-    - F1
+  loss: cross_entropy
+  metrics:
+    - accuracy_binary_ignore_index
+    - f1_binary_ignore_index
+    - precision_binary_ignore_index
+    - recall_binary_ignore_index
+    - confusion_matrix_binary_ignore_index
+    - auroc_binary_ignore_index
+  torchmetrics: null
 
 trainer:
   accelerator: gpu
@@ -49,27 +52,21 @@ trainer:
   precision: bf16
   gradient_clip_val: 1.0
   track_grad_norm: 2
-  val_check_interval: 0.1
+  val_check_interval: 1
   max_epochs: 5
   min_epochs: 5
   log_every_n_steps: 1
-  fast_dev_run: 10
 
 dataset:
-  bed_file: /scratch/kyle/hyena-dna/data/hg38/human-sequences.bed
+  bed_file: /scratch/kyle/hyena-dna/data/hg38/sequences.bed
   fasta_file: /scratch/kyle/hyena-dna/data/hg38/hg38.ml.fa
   ref_labels_file: /scratch/kyle/hyena-dna/data/hg38/hg38.refGene.gtf
   tokenizer_name: bpe
   max_length: 1000000
   batch_size: 1
-  num_workers: 1
-  padding_size: left
-  pad_to_max_length: True
-  truncation_side: left
-  truncate_to_max_length: True
-  fill_side: left
-  fill_to_max_length: True
-  length_multiplier: 1
+  drop_last: False
+  __train_len: 125
+  __l_max: ${dataset.max_length}
 
 scheduler:
   t_in_epochs: False
@@ -85,8 +82,9 @@ optimizer:
 train:
   gpu_mem: ${eval:"round(float(__import__('subprocess').check_output('nvidia-smi -i 0 --query-gpu=memory.total --format=csv,noheader,nounits', shell=True).strip().decode()) / 1000)"}
   seed: 2222
-  global_batch_size: 256
-  test: true
+  global_batch_size: 32
+  validate_at_start: True
+  test: True
   pretrained_model_strict_load: False 
   pretrained_model_path: null
   pretrained_model_state_hook:
