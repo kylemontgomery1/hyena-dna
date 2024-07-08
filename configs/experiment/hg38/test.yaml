@@ -65,7 +65,7 @@ dataset:
   max_length: 1000000
   batch_size: 1
   drop_last: False
-  __train_len: 125
+  __train_len: 1000
   __l_max: ${dataset.max_length}
 
 scheduler:
@@ -83,7 +83,7 @@ train:
   gpu_mem: ${eval:"round(float(__import__('subprocess').check_output('nvidia-smi -i 0 --query-gpu=memory.total --format=csv,noheader,nounits', shell=True).strip().decode()) / 1000)"}
   seed: 2222
   global_batch_size: 32
-  validate_at_start: True
+  validate_at_start: False
   test: True
   pretrained_model_strict_load: False 
   pretrained_model_path: null
