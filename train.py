@@ -199,6 +199,9 @@ class SequenceLightningModule(pl.LightningModule):
         if hasattr(self.task, 'loss_val'):
             self.loss_val = self.task.loss_val
         self.metrics = self.task.metrics
+        self.train_torchmetrics = self.task.train_torchmetrics
+        self.val_torchmetrics = self.task.val_torchmetrics
+        self.test_torchmetrics = self.task.test_torchmetrics
 
     def load_state_dict(self, state_dict, strict=False):
         if self.hparams.train.pretrained_model_state_hook['_name_'] is not None:
@@ -325,6 +328,9 @@ class SequenceLightningModule(pl.LightningModule):
             loss = self.loss(x, y, **w)
         else:
             loss = self.loss_val(x, y, **w)
+            
+        torchmetrics = getattr(self, f'{prefix}_torchmetrics')
+        torchmetrics(x, y, loss=loss)
 
         # Metrics
         metrics = self.metrics(x, y, **w)
