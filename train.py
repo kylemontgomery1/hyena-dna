@@ -187,7 +187,6 @@ class SequenceLightningModule(pl.LightningModule):
         encoder = encoders.instantiate(
             encoder_cfg, dataset=self.dataset, model=self.model
         )
-        print(decoder_cfg)
         decoder = decoders.instantiate(
             decoder_cfg, model=self.model, dataset=self.dataset
         )
@@ -209,7 +208,6 @@ class SequenceLightningModule(pl.LightningModule):
                 partial=True,
             )
             state_dict = model_state_hook(self.model, state_dict)
-
         print("Custom load_state_dict function is running.")
 
         # strict==True will require all modules to match
@@ -331,8 +329,6 @@ class SequenceLightningModule(pl.LightningModule):
         metrics = self.metrics(x, y, **w)
         metrics["loss"] = loss
         metrics = {f"{prefix}/{k}": v for k, v in metrics.items()}
-        
-        print(metrics)
 
         self.log_dict(
             metrics,

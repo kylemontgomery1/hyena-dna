@@ -98,7 +98,7 @@ class GeneIdentificationDataset(torch.utils.data.Dataset):
         for tok_idx, (tok_start, tok_end) in enumerate(seq_tokenized['offset_mapping']):
             if tok_start == tok_end: # ignore loss on pad token
                 targets[tok_idx] = -100
-            if tok_end == tok_start + 1 and seq[tok_start].item() == self.tokenizer.unk_token_id: # ignore loss on unk_token likely "N"
+            if tok_end == tok_start + 1 and seq[tok_idx].item() == self.tokenizer.unk_token_id: # ignore loss on unk_token likely "N"
                 targets[tok_idx] = -100
             else:
                 targets[tok_idx] = 1 if char_targets[tok_start:tok_end].sum() > 0 else 0 

@@ -1,0 +1,95 @@
+# @package _global_
+defaults:
+  - /pipeline: gene_identification
+  - override /scheduler: cosine_warmup_timm
+
+model:
+  _name_: dna_embedding
+  d_model: 256
+  n_layer: 8
+  d_inner: 1024
+  vocab_size: 32000
+  resid_dropout: 0.0
+  embed_dropout: 0.1
+  fused_mlp: False # figure out how to use fused MLP, maybe only with bf16 + a100
+  fused_dropout_add_ln: True
+  residual_in_fp32: True
+  pad_vocab_size_multiple: 8
+  return_hidden_state: True
+  bidirectional: True
+  checkpoint_mixer: True
+  checkpoint_mlp: True
+  layer:
+    _name_: hyena
+    emb_dim: 5
+    filter_order: 64
+    short_filter_order: 3
+    l_max: ${dataset.max_length}
+    modulate: True
+    w: 10
+    lr: ${optimizer.lr}
+    wd: 0.0
+    lr_pos_emb: 0.0
+    bidirectional: True
+
+task:
+  _name_: base
+  loss: weighted_cross_entropy # cross_entropy 
+  metrics:
+    - accuracy_binary_ignore_index
+    - f1_binary_ignore_index
+    - precision_binary_ignore_index
+    - recall_binary_ignore_index
+    # - confusion_matrix_binary_ignore_index
+    # - auroc_binary_ignore_index
+  torchmetrics: null
+
+trainer:
+  accelerator: gpu
+  devices: 1
+  num_nodes: 1
+  accumulate_grad_batches: ${div_up:${train.global_batch_size}, ${eval:${trainer.devices} * ${dataset.batch_size} * ${trainer.num_nodes}}}
+  precision: bf16
+  gradient_clip_val: 1.0
+  track_grad_norm: 2
+  # check_val_every_n_epoch: 1
+  val_check_interval: 0.5
+  max_epochs: 5
+  min_epochs: 5
+  log_every_n_steps: 1
+  num_sanity_val_steps: 0
+
+dataset:
+  bed_file: /scratch/kyle/hyena-dna/data/hg38/sequences_500k.bed
+  fasta_file: /scratch/kyle/hyena-dna/data/hg38/hg38.ml.fa
+  ref_labels_file: /scratch/kyle/hyena-dna/data/hg38/hg38.refGene.gtf
+  tokenizer_name: bpe
+  max_length: 500000
+  batch_size: 1
+  drop_last: False
+  d_output: 2
+  __train_len: 160
+  __l_max: ${dataset.max_length}
+
+scheduler:
+  t_in_epochs: False
+  t_initial: ${eval:${div_up:${dataset.__train_len}, ${train.global_batch_size}} * ${trainer.max_epochs}}
+  warmup_lr_init: 1e-6
+  warmup_t: ${eval:${div_up:${dataset.__train_len}, ${train.global_batch_size}} * ${trainer.max_epochs} * 0.01}
+  lr_min: ${eval:0.1 * ${optimizer.lr}}
+
+optimizer:
+  lr: 6e-5
+  weight_decay: 0.1
+
+train:
+  gpu_mem: ${eval:"round(float(__import__('subprocess').check_output('nvidia-smi -i 0 --query-gpu=memory.total --format=csv,noheader,nounits', shell=True).strip().decode()) / 1000)"}
+  seed: 2222
+  global_batch_size: 32
+  validate_at_start: True
+  test: True
+  pretrained_model_strict_load: False 
+  pretrained_model_path: null
+  pretrained_model_state_hook:
+    _name_: load_backbone
+    freeze_backbone: False  # seems to work much better if False (ie finetune entire model)

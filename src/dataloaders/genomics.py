@@ -730,7 +730,7 @@ class GeneIdentification(HG38):
     def __init__(self, bed_file, fasta_file, ref_labels_file, tokenizer_name="bpe", max_length=int(1e6),
                  max_length_val=None, max_length_test=None, batch_size=32, batch_size_eval=None, num_workers=1,
                  shuffle=True, fault_tolerant=False, ddp=False, fast_forward_epochs=None, 
-                 fast_forward_batches=None, pin_memory=False, drop_last=False, *args, **kwargs):
+                 fast_forward_batches=None, pin_memory=False, drop_last=False, d_output=2, *args, **kwargs):
         self.bed_file = bed_file
         self.fasta_file = fasta_file
         self.ref_labels_file = ref_labels_file
@@ -744,6 +744,7 @@ class GeneIdentification(HG38):
         self.shuffle = shuffle
         self.pin_memory = pin_memory
         self.drop_last = drop_last
+        self.d_output = d_output
 
         if fault_tolerant:
             assert self.shuffle

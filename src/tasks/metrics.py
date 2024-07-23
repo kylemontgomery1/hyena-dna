@@ -9,6 +9,12 @@ def cross_entropy(logits, y, ignore_index=-100):
     loss = F.cross_entropy(logits, y, ignore_index=ignore_index)
     return loss
 
+def weighted_cross_entropy(logits, y, ignore_index=-100, weight=[1.02, 50]):
+    logits = logits.view(-1, logits.shape[-1])
+    y = y.view(-1)
+    loss = F.cross_entropy(logits, y, ignore_index=ignore_index, weight=torch.tensor(weight).cuda()) # may not work correctly in distributed setup
+    return loss
+
 def accuracy_binary_ignore_index(logits, y, ignore_index=-100):
     logits = logits.view(-1, logits.shape[-1])
     preds = torch.argmax(logits, dim=-1)
@@ -62,6 +68,7 @@ def ppl(x, y, loss_fn):
 # should have a better way to do this
 output_metric_fns = {
     "cross_entropy": cross_entropy,
+    "weighted_cross_entropy": weighted_cross_entropy,
     "accuracy_binary_ignore_index": accuracy_binary_ignore_index,
     "f1_binary_ignore_index": f1_binary_ignore_index,
     "precision_binary_ignore_index": precision_binary_ignore_index,
